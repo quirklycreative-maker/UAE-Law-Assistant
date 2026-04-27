@@ -1,0 +1,48 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Noto+Sans+Arabic:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-arabic: "Noto Sans Arabic", "Inter", sans-serif;
+  --color-emerald-500: #10b981;
+  --color-emerald-600: #059669;
+  --color-emerald-700: #047857;
+  --color-emerald-800: #065f46;
+}
+
+@layer base {
+  body {
+    @apply antialiased text-slate-800 bg-slate-50 selection:bg-emerald-100 selection:text-emerald-900;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    overscroll-behavior-y: none;
+  }
+}
+
+.chat-container {
+  overscroll-behavior-y: contain;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.prose {
+  @apply max-w-none;
+}
+
+.prose strong {
+  @apply text-emerald-800 font-bold;
+}
+
+.prose p {
+  @apply mb-4 leading-relaxed;
+}
+
+.prose blockquote {
+  @apply border-l-4 border-emerald-200 bg-emerald-50/50 p-4 rounded-r-xl italic text-emerald-900;
+}

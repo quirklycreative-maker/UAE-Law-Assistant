@@ -1,0 +1,57 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function getUserData(userId) {
+      return get(/databases/$(database)/documents/users/$(userId)).data;
+    }
+
+    function isLawyer() {
+      return isSignedIn() && getUserData(request.auth.uid).role == 'lawyer';
+    }
+
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // User profiles
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow write: if isOwner(userId);
+    }
+
+    // Consultations
+    match /consultations/{consultationId} {
+      allow read: if isSignedIn() && (
+        request.auth.uid == resource.data.clientId || 
+        request.auth.uid == resource.data.lawyerId
+      );
+      allow create: if isSignedIn() && request.resource.data.clientId == request.auth.uid;
+      allow update: if isSignedIn() && (
+        request.auth.uid == resource.data.clientId || 
+        request.auth.uid == resource.data.lawyerId
+      );
+    }
+
+    // AI Conversations
+    match /ai_conversations/{conversationId} {
+      allow read, write: if isSignedIn() && request.auth.uid == resource.data.userId;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+    }
+
+    // Legislation (Public Knowledge Base)
+    match /legislation/{lawId} {
+      allow read: if true; // Publicly accessible for fast client-side RAG or search
+      allow write: if false; // Only manageable via server-side admin SDK
+    }
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "name": "JusticeFlow UAE Legal AI",
+  "description": "A comprehensive platform for navigating UAE legislation with AI-powered legal advisors and certified lawyer consultations.",
+  "requestFramePermissions": ["camera", "microphone", "geolocation"],
+  "majorCapabilities": []
+}
