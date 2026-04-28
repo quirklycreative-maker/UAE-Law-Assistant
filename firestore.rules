@@ -14,8 +14,54 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/users/$(userId)).data;
     }
 
+    function isSuperAdmin() { 
+      return isSignedIn() && request.auth.token.email == "universe.24.369@gmail.com"; 
+    }
+
     function isLawyer() {
-      return isSignedIn() && getUserData(request.auth.uid).role == 'lawyer';
+      return isSignedIn() && (
+        isSuperAdmin() ||
+        getUserData(request.auth.uid).role == 'lawyer' ||
+        exists(/databases/$(database)/documents/authorized_lawyers/$(request.auth.token.email))
+      );
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        isSuperAdmin() || 
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidLawyerApplication(data) {
+      return data.keys().hasAll(['userId', 'fullName', 'email', 'phone', 'specializations', 'experience', 'licenseNumber', 'bio', 'education', 'languages', 'price', 'workingHours', 'offDays', 'isOOO', 'status', 'userPhoto', 'createdAt']) &&
+             data.keys().size() == 17 &&
+             data.userId == request.auth.uid &&
+             data.workingHours is map &&
+             data.offDays is list &&
+             data.isOOO is bool &&
+             data.fullName is string && data.fullName.size() <= 200 &&
+             data.email is string && data.email.size() <= 200 &&
+             data.status == 'pending' &&
+             data.createdAt == request.time;
+    }
+
+    function isValidConsultation(data) {
+      return data.clientId == request.auth.uid &&
+             data.lawyerId is string &&
+             data.createdAt == request.time;
     }
 
     // Default deny
@@ -29,29 +75,75 @@ service cloud.firestore {
       allow write: if isOwner(userId);
     }
 
+    // Role Management (Authorized Lawyers)
+    match /authorized_lawyers/{email} {
+      allow read: if isSignedIn();
+      allow write: if isSuperAdmin();
+    }
+
     // Consultations
     match /consultations/{consultationId} {
       allow read: if isSignedIn() && (
         request.auth.uid == resource.data.clientId || 
-        request.auth.uid == resource.data.lawyerId
+        request.auth.uid == resource.data.lawyerId ||
+        isAdmin()
       );
-      allow create: if isSignedIn() && request.resource.data.clientId == request.auth.uid;
+      allow create: if isSignedIn() && isValidConsultation(incoming());
       allow update: if isSignedIn() && (
         request.auth.uid == resource.data.clientId || 
-        request.auth.uid == resource.data.lawyerId
+        request.auth.uid == resource.data.lawyerId ||
+        isAdmin()
       );
     }
 
     // AI Conversations
     match /ai_conversations/{conversationId} {
       allow read, write: if isSignedIn() && request.auth.uid == resource.data.userId;
-      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && incoming().userId == request.auth.uid;
     }
 
     // Legislation (Public Knowledge Base)
     match /legislation/{lawId} {
-      allow read: if true; // Publicly accessible for fast client-side RAG or search
-      allow write: if false; // Only manageable via server-side admin SDK
+      allow read: if true; 
+      allow write: if isAdmin();
+    }
+
+    // Lawyer Applications
+    match /lawyer_applications/{applicationId} {
+      allow read: if isSignedIn() && (request.auth.uid == resource.data.userId || isAdmin());
+      allow create: if isSignedIn() && isValidLawyerApplication(incoming());
+      allow update, delete: if isAdmin();
+    }
+
+    // Lawyers (Public Profiles)
+    match /lawyers/{lawyerId} {
+      allow read: if true;
+      allow create: if isSignedIn() && request.auth.uid == lawyerId;
+      allow update: if isAdmin() || (
+        isSignedIn() && 
+        request.auth.uid == lawyerId && 
+        incoming().diff(existing()).affectedKeys().hasOnly(['workingHours', 'offDays', 'isOOO', 'updatedAt'])
+      );
+      allow delete: if isAdmin() || (isSignedIn() && request.auth.uid == lawyerId);
+    }
+
+    // Lawyer Co-Pilot sessions
+    match /lawyer_co_pilots/{sessionId} {
+      function isValidCoPilot(data) {
+        return data.userId == request.auth.uid &&
+               data.messages is list &&
+               (data.updatedAt == request.time || data.updatedAt == null);
+      }
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && isValidCoPilot(incoming());
+      allow update: if isSignedIn() && (resource.data.userId == request.auth.uid) && isValidCoPilot(incoming());
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+
+    // Precedents (Case Law Library)
+    match /precedents/{precedentId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
     }
   }
 }

@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 import { collection, query, where, getDocs, limit, orderBy } from "firebase/firestore";
 import { db, handleFirestoreError, OperationType } from "../lib/firebase";
 
@@ -55,9 +56,36 @@ const MOCK_LEGISLATION: LawSnippet[] = [
 
 /**
  * Searches local Firestore legislation for relevant laws (Basic RAG)
+ * Now includes support for real MOJ Legislation API integration.
  */
 export async function searchLocalLegislation(keyword: string): Promise<LawSnippet[]> {
   try {
+    // 1. Attempt to fetch from real UAE MOJ Legislation API if configured
+    const mojApiKey = import.meta.env.VITE_MOJ_API_KEY;
+    if (mojApiKey) {
+      try {
+        const response = await fetch(`https://api.moj.gov.ae/v1/legislation/search?query=${encodeURIComponent(keyword)}`, {
+          headers: {
+            "Authorization": `Bearer ${mojApiKey}`,
+            "Content-Type": "application/json"
+          }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          return data.snippets.map((s: any) => ({
+            id: s.id,
+            title: s.title,
+            lawNumber: s.law_no,
+            articleNumber: s.article_no,
+            category: s.category || "General",
+            content: s.text_content
+          }));
+        }
+      } catch (apiErr) {
+        console.error("MOJ Legislation API Error:", apiErr);
+      }
+    }
+
     const path = "legislation";
     const lawsRef = collection(db, path);
     const q = query(lawsRef, limit(10));

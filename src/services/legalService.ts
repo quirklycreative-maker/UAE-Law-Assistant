@@ -1,6 +1,6 @@
 import { ai, MODELS } from "../lib/gemini";
 
-const SYSTEM_INSTRUCTION = `You are a concise UAE Legal AI Advisor. 
+const SYSTEM_INSTRUCTION = `You are a concise UAE Legal AI Advisor for consumers. 
 
 RULES:
 1. BE CONCISE. Use bullet points. Avoid long paragraphs.
@@ -14,6 +14,79 @@ Structure:
 - **Law References**: Bullet points only.
 - **Action**: One clear next step.
 - **Consultation**: Proactive nudge to a lawyer category.`;
+
+const LAWYER_COPILOT_INSTRUCTION = `You are a highly technical UAE Legal Research Assistant for professional lawyers.
+
+GOALS:
+1. Provide deep technical analysis, case law references (if applicable), and procedural nuances.
+2. Cite specific laws, executive regulations, and ministerial decrees with precision.
+3. Help with legal drafting suggestions, memorandum outlines, and strategy brainstorming.
+4. Maintain a professional, peer-to-peer scholarly tone.
+
+RULES:
+1. Exhaustive Citations: Always provide full Law names and Year of issuance.
+2. Nuanced Analysis: Discuss exceptions, time limits (limitation periods), and jurisdictional differences (e.g. Mainland vs Free Zones vs DIFC/ADGM).
+3. Formatting: Use clear headings and structured sections.
+4. Language: professional legal terminology in both English and Arabic as needed.
+
+Structure:
+- **Technical Analysis**: Detailed breakdown of the legal issue.
+- **Regulatory Framework**: List of applicable laws, articles, and decrees.
+- **Procedural Guidance**: Steps, timelines, and jurisdictional notes.
+- **Strategic Considerations**: Potential risks, counter-arguments, or drafting tips.`;
+
+export async function getLawyerCoPilotAdvice(
+  userPrompt: string, 
+  history: { role: string; text: string }[] = [], 
+  context: string = "", 
+  language: string = "en"
+) {
+  try {
+    const contents = [];
+    
+    const augmentedInstruction = `${LAWYER_COPILOT_INSTRUCTION}
+    
+    IMPORTANT: The current user preference is ${language.toUpperCase()}.
+    
+    ${context ? `ENHANCED KNOWLEDGE BASE (TECHNICAL RAG):
+    ${context}` : "Note: Rely on your internal advanced knowledge of UAE Law systems."}`;
+
+    if (history.length > 0 && history[0].role === 'user') {
+      contents.push({
+        role: "user",
+        parts: [{ text: `INSTRUCTION: ${augmentedInstruction}\n\nUSER QUESTION: ${history[0].text}` }]
+      });
+      for (let i = 1; i < history.length; i++) {
+        contents.push({ role: history[i].role, parts: [{ text: history[i].text }] });
+      }
+    } else if (history.length === 0) {
+      contents.push({
+        role: "user",
+        parts: [{ text: `INSTRUCTION: ${LAWYER_COPILOT_INSTRUCTION}\n\nUSER QUESTION: ${userPrompt}` }]
+      });
+    } else {
+      contents.push({ role: "user", parts: [{ text: LAWYER_COPILOT_INSTRUCTION }] });
+      contents.push(...history.map(m => ({ role: m.role as "user" | "model", parts: [{ text: m.text }] })));
+    }
+
+    if (history.length > 0) {
+      contents.push({ role: "user", parts: [{ text: userPrompt }] });
+    }
+
+    const response = await ai.models.generateContent({
+      model: MODELS.pro, // Use Pro for technical lawyer co-pilot
+      contents,
+      config: {
+        temperature: 0.3, // Lower temperature for more precise technical results
+      },
+    });
+
+    return response.text || "I'm sorry, I couldn't generate a technical response.";
+  } catch (error) {
+    console.error("Gemini Technical Error:", error);
+    return "Error: Technical co-pilot bridge failed.";
+  }
+}
 
 export async function getLegalAdvice(
   userPrompt: string, 

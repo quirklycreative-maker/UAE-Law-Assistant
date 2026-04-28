@@ -1,21 +1,36 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Noto+Sans+Arabic:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;600;800&family=Noto+Sans+Arabic:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Outfit", "Inter", sans-serif;
   --font-arabic: "Noto Sans Arabic", "Inter", sans-serif;
-  --color-emerald-500: #10b981;
-  --color-emerald-600: #059669;
-  --color-emerald-700: #047857;
-  --color-emerald-800: #065f46;
+  
+  --color-prestige-50: #f8fafc;
+  --color-prestige-100: #f1f5f9;
+  --color-prestige-200: #e2e8f0;
+  --color-prestige-300: #cbd5e1;
+  --color-prestige-400: #94a3b8;
+  --color-prestige-500: #64748b;
+  --color-prestige-600: #475569;
+  --color-prestige-700: #334155;
+  --color-prestige-800: #1e293b;
+  --color-prestige-900: #0f172a;
+  --color-prestige-950: #020617;
+
+  --color-accent-gold: #c5a059;
+  --color-accent-indigo: #4338ca;
 }
 
 @layer base {
   body {
-    @apply antialiased text-slate-800 bg-slate-50 selection:bg-emerald-100 selection:text-emerald-900;
+    @apply antialiased text-prestige-900 bg-white selection:bg-accent-indigo/10 selection:text-accent-indigo;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
-    overscroll-behavior-y: none;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display tracking-tight text-prestige-950;
   }
 }
 
@@ -36,7 +51,7 @@
 }
 
 .prose strong {
-  @apply text-emerald-800 font-bold;
+  @apply text-accent-indigo font-bold;
 }
 
 .prose p {
@@ -44,5 +59,5 @@
 }
 
 .prose blockquote {
-  @apply border-l-4 border-emerald-200 bg-emerald-50/50 p-4 rounded-r-xl italic text-emerald-900;
+  @apply border-s-4 border-prestige-200 bg-prestige-50/50 p-4 rounded-e-xl italic text-prestige-800;
 }
