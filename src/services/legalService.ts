@@ -1,4 +1,5 @@
 import { ai, MODELS } from "../lib/gemini";
+import { logUsage } from "../lib/usage";
 
 const SYSTEM_INSTRUCTION = `You are a concise UAE Legal AI Advisor for consumers. 
 
@@ -41,49 +42,52 @@ export async function getLawyerCoPilotAdvice(
   context: string = "", 
   language: string = "en"
 ) {
-  try {
-    const contents = [];
-    
-    const augmentedInstruction = `${LAWYER_COPILOT_INSTRUCTION}
+  const augmentedInstruction = `${LAWYER_COPILOT_INSTRUCTION}
     
     IMPORTANT: The current user preference is ${language.toUpperCase()}.
     
     ${context ? `ENHANCED KNOWLEDGE BASE (TECHNICAL RAG):
     ${context}` : "Note: Rely on your internal advanced knowledge of UAE Law systems."}`;
 
-    if (history.length > 0 && history[0].role === 'user') {
-      contents.push({
-        role: "user",
-        parts: [{ text: `INSTRUCTION: ${augmentedInstruction}\n\nUSER QUESTION: ${history[0].text}` }]
+  try {
+    try {
+      const response = await ai.models.generateContent({
+        model: MODELS.pro,
+        contents: [
+          ...history.map(m => ({ role: m.role as "user" | "model", parts: [{ text: m.text }] })),
+          { role: "user", parts: [{ text: userPrompt }] }
+        ],
+        config: {
+          systemInstruction: augmentedInstruction,
+          temperature: 0.3,
+        },
       });
-      for (let i = 1; i < history.length; i++) {
-        contents.push({ role: history[i].role, parts: [{ text: history[i].text }] });
+
+      logUsage('gemini_query', 'success', 0);
+      return response.text || "I'm sorry, I couldn't generate a technical response.";
+    } catch (proError: any) {
+      // If Pro is unavailable (503), fallback to Flash
+      if (proError?.error?.code === 503 || proError?.status === 503 || JSON.stringify(proError).includes("503")) {
+        console.warn("Gemini Pro unavailable, falling back to Flash");
+        const fallbackResponse = await ai.models.generateContent({
+          model: MODELS.flash,
+          contents: [
+            ...history.map(m => ({ role: m.role as "user" | "model", parts: [{ text: m.text }] })),
+            { role: "user", parts: [{ text: userPrompt }] }
+          ],
+          config: {
+            systemInstruction: augmentedInstruction,
+            temperature: 0.3,
+          },
+        });
+        logUsage('gemini_query', 'success', 0);
+        return fallbackResponse.text || "I'm sorry, I couldn't generate a technical response (fallback).";
       }
-    } else if (history.length === 0) {
-      contents.push({
-        role: "user",
-        parts: [{ text: `INSTRUCTION: ${LAWYER_COPILOT_INSTRUCTION}\n\nUSER QUESTION: ${userPrompt}` }]
-      });
-    } else {
-      contents.push({ role: "user", parts: [{ text: LAWYER_COPILOT_INSTRUCTION }] });
-      contents.push(...history.map(m => ({ role: m.role as "user" | "model", parts: [{ text: m.text }] })));
+      throw proError;
     }
-
-    if (history.length > 0) {
-      contents.push({ role: "user", parts: [{ text: userPrompt }] });
-    }
-
-    const response = await ai.models.generateContent({
-      model: MODELS.pro, // Use Pro for technical lawyer co-pilot
-      contents,
-      config: {
-        temperature: 0.3, // Lower temperature for more precise technical results
-      },
-    });
-
-    return response.text || "I'm sorry, I couldn't generate a technical response.";
   } catch (error) {
     console.error("Gemini Technical Error:", error);
+    logUsage('gemini_query', 'error');
     return "Error: Technical co-pilot bridge failed.";
   }
 }
@@ -95,10 +99,7 @@ export async function getLegalAdvice(
   language: string = "en",
   imageData?: string // base64 string
 ) {
-  try {
-    const contents = [];
-    
-    const augmentedInstruction = `${SYSTEM_INSTRUCTION}
+  const augmentedInstruction = `${SYSTEM_INSTRUCTION}
     
     IMPORTANT: The current user preference is ${language.toUpperCase()}. 
     If the user has been speaking in ${language === 'en' ? 'Arabic' : 'English'}, respect their session flow, but prioritize ${language === 'en' ? 'English' : 'Arabic'} for this response if their message is in that language.
@@ -106,61 +107,35 @@ export async function getLegalAdvice(
     ${context ? `ADDITIONAL LOCAL DATABASE KNOWLEDGE (RAG):
     ${context}` : "Note: No specific local database matches found. Rely on your internal knowledge of UAE Law."}`;
 
-    // Concatenate instruction to first user message or add as first message
-    if (history.length > 0 && history[0].role === 'user') {
-      contents.push({
-        role: "user",
-        parts: [{ text: `INSTRUCTION: ${augmentedInstruction}\n\nUSER QUESTION: ${history[0].text}` }]
+  try {
+    const userParts: any[] = [{ text: userPrompt }];
+    if (imageData) {
+      userParts.push({
+        inlineData: {
+          mimeType: "image/jpeg",
+          data: imageData.split(",")[1] || imageData
+        }
       });
-      // Add rest of history starting from index 1
-      for (let i = 1; i < history.length; i++) {
-        contents.push({ role: history[i].role, parts: [{ text: history[i].text }] });
-      }
-    } else if (history.length === 0) {
-      const parts: any[] = [{ text: `INSTRUCTION: ${SYSTEM_INSTRUCTION}\n\nUSER QUESTION: ${userPrompt}` }];
-      if (imageData) {
-        parts.push({
-          inlineData: {
-            mimeType: "image/jpeg",
-            data: imageData.split(",")[1] || imageData
-          }
-        });
-      }
-      contents.push({
-        role: "user",
-        parts
-      });
-    } else {
-      // History starts with model or roles are mixed
-      contents.push({ role: "user", parts: [{ text: SYSTEM_INSTRUCTION }] });
-      contents.push(...history.map(m => ({ role: m.role as "user" | "model", parts: [{ text: m.text }] })));
-    }
-
-    // Add current prompt if it wasn't combined above
-    if (history.length > 0) {
-      const parts: any[] = [{ text: userPrompt }];
-      if (imageData) {
-        parts.push({
-          inlineData: {
-            mimeType: "image/jpeg",
-            data: imageData.split(",")[1] || imageData
-          }
-        });
-      }
-      contents.push({ role: "user", parts });
     }
 
     const response = await ai.models.generateContent({
       model: MODELS.flash,
-      contents,
+      contents: [
+        ...history.map(m => ({ role: m.role as "user" | "model", parts: [{ text: m.text }] })),
+        { role: "user", parts: userParts }
+      ],
       config: {
+        systemInstruction: augmentedInstruction,
         temperature: 0.7,
       },
     });
 
+    logUsage('gemini_query', 'success', 0);
+
     return response.text || "I'm sorry, I couldn't generate a response at this time.";
   } catch (error) {
     console.error("Gemini API Error:", error);
+    logUsage('gemini_query', 'error');
     if (JSON.stringify(error).includes("403")) {
         return "I'm sorry, there seems to be a permission issue with the AI service. Please check if your API key is correctly configured and has access to the requested model.";
     }

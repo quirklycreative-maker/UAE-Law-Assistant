@@ -16,78 +16,20 @@ import { collection, addDoc, query, where, getDocs, onSnapshot, orderBy, serverT
 import { useLanguage } from "./contexts/LanguageContext";
 import { extractTextFromPdf } from "./lib/pdfUtils";
 import History from "./pages/History";
+import { UserProvider, useUser } from "./contexts/UserContext";
 import LawyerProfile from "./pages/LawyerProfile";
 import LawyerRegistration from "./pages/LawyerRegistration";
 import LawyerDashboard from "./pages/LawyerDashboard";
 import LawyerAssistant from "./pages/LawyerAssistant";
 import Management from "./pages/Management";
-
-// --- Sub-Pages ---
-
-const LAW_CATEGORIES = [
-  { id: "labor", name: "Labor Law", icon: Briefcase, desc: "Private sector employment relations, contracts, and gratuity." },
-  { id: "commercial", name: "Commercial Law", icon: Scale, desc: "Business regulations, companies, and commercial agency laws." },
-  { id: "property", name: "Property & Real Estate", icon: ShieldCheck, desc: "Laws governing ownership, tenancy, and real estate development." },
-  { id: "civil", name: "Civil Transactions", icon: Gavel, desc: "General civil rights, obligations, and contract laws." },
-  { id: "criminal", name: "Criminal Law", icon: ShieldCheck, desc: "UAE penal code, crimes, and legal procedures." },
-  { id: "personal", name: "Personal Status", icon: Users, desc: "Marriage, divorce, inheritance, and child custody." }
-];
-
-// --- Sub-Pages ---
-
-function BrowseLaws() {
-  const navigate = useNavigate();
-  const { t } = useLanguage();
-  return (
-    <div className="container mx-auto px-6 py-24 space-y-20">
-      <div className="text-center space-y-6 max-w-3xl mx-auto">
-        <h2 className="text-5xl md:text-6xl font-extrabold text-prestige-950 tracking-tighter leading-none">
-          UAE Legislation <span className="text-accent-gold italic serif">Directory</span>
-        </h2>
-        <p className="text-xl text-prestige-500 font-medium">Explore the comprehensive library of UAE Federal and Local laws through our AI-guided portal.</p>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-        {LAW_CATEGORIES.map(cat => (
-          <motion.div 
-            key={cat.id} 
-            whileHover={{ y: -10, scale: 1.02 }}
-            className="p-10 bg-white border border-prestige-100 rounded-[2.5rem] cursor-pointer hover:border-accent-indigo hover:shadow-2xl hover:shadow-accent-indigo/10 group transition-all duration-500"
-            onClick={() => navigate(`/assistant?q=Tell me about the ${cat.name} in UAE`)}
-          >
-            <div className="w-16 h-16 bg-prestige-50 rounded-2xl flex items-center justify-center text-accent-indigo mb-8 group-hover:bg-accent-indigo group-hover:text-white transition-all duration-500 transform group-hover:rotate-6">
-              <cat.icon className="w-8 h-8" />
-            </div>
-            <h3 className="text-2xl font-black text-prestige-900 mb-3 tracking-tight">{cat.name}</h3>
-            <p className="text-prestige-500 leading-relaxed font-medium line-clamp-3">{cat.desc}</p>
-            <div className="pt-6 mt-6 border-t border-prestige-50 flex items-center gap-2 text-accent-indigo font-black text-xs uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">
-              Explore Laws <ArrowRight className="w-4 h-4" />
-            </div>
-          </motion.div>
-        ))}
-      </div>
-    </div>
-  );
-}
+import Support from "./pages/Support";
+import Legislation from "./pages/Legislation";
 
 function Home() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
-  const [user] = useAuthState(auth);
-  const [lawyerProfile, setLawyerProfile] = useState<Lawyer | null>(null);
+  const { user, lawyerProfile } = useUser();
   const { t, isRtl } = useLanguage();
-
-  useEffect(() => {
-    async function checkLawyer() {
-      if (user) {
-        const profile = await getLawyerByUserId(user.uid);
-        setLawyerProfile(profile);
-      } else {
-        setLawyerProfile(null);
-      }
-    }
-    checkLawyer();
-  }, [user]);
 
   return (
     <div className="space-y-32 pb-32">
@@ -116,17 +58,21 @@ function Home() {
               <span className="inline-flex items-center gap-2 px-4 py-2 bg-accent-gold/20 rounded-full border border-accent-gold/30 backdrop-blur-md">
                 <ShieldCheck className="w-4 h-4 text-accent-gold" />
                 <span className="text-[10px] font-black text-accent-gold uppercase tracking-[0.2em]">
-                  {lawyerProfile ? "Professional Professional Environment" : t("verifiedLaws").toUpperCase()}
+                  {lawyerProfile ? t("professionalEnvironment") : t("verifiedLaws").toUpperCase()}
                 </span>
               </span>
               <h1 className="text-5xl md:text-8xl font-black leading-[0.9] tracking-tighter text-white">
-                {lawyerProfile ? "AI Legal" : t("heroTitle")}
-                <br />
-                <span className="text-accent-gold italic serif font-normal">{lawyerProfile ? "Co-Pilot" : "JusticeFlow"}</span>
+                {!lawyerProfile && (
+                  <>
+                    {t("heroTitle")}
+                    <br />
+                  </>
+                )}
+                <span className="text-accent-gold italic serif font-normal">{lawyerProfile ? t("aiCoPilot") : "Huqiqiyy Co-pilot"}</span>
               </h1>
               <p className="text-lg md:text-xl text-prestige-300 max-w-xl font-medium leading-relaxed">
                 {lawyerProfile 
-                   ? "Your technical research assistant for case law, regulations, and procedural nuances in the UAE."
+                   ? t("aiCoPilotDesc")
                    : t("heroSubtitle")}
               </p>
             </div>
@@ -139,7 +85,7 @@ function Home() {
                     className="px-8 md:px-10 py-4 md:py-5 bg-accent-gold text-prestige-950 rounded-2xl font-black hover:bg-white transition-all flex items-center justify-center gap-3 text-sm shadow-2xl shadow-accent-gold/20 active:scale-95 group"
                   >
                     <Zap className="w-5 h-5 fill-current group-hover:animate-pulse" />
-                    Launch AI Strategic Associate
+                    {t("launchAIStrategicAssociate")}
                   </button>
 
                   <motion.div 
@@ -149,10 +95,10 @@ function Home() {
                     className="w-full max-w-sm bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-6 text-start"
                   >
                     <div className="flex items-center justify-between mb-4">
-                      <h4 className="text-[10px] font-black text-accent-gold uppercase tracking-widest">Upcoming Appointment</h4>
+                      <h4 className="text-[10px] font-black text-accent-gold uppercase tracking-widest">{t("upcomingAppointment")}</h4>
                       <div className="flex items-center gap-1.5 px-2 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
                         <div className="w-1 h-1 bg-emerald-500 rounded-full animate-pulse" />
-                        <span className="text-[8px] font-bold text-emerald-500">CONFIRMED</span>
+                        <span className="text-[8px] font-bold text-emerald-500">{t("confirmed")}</span>
                       </div>
                     </div>
                     <div className="flex items-center gap-4">
@@ -160,12 +106,12 @@ function Home() {
                         <span className="text-[10px] font-black text-accent-blue">APR</span>
                         <span className="text-lg font-black text-white leading-none">29</span>
                       </div>
-                      <div>
-                        <p className="text-sm font-bold text-white tracking-tight">Client: Sarah Al-Maktoum</p>
-                        <p className="text-xs text-prestige-400">14:00 • Commercial Lease Review</p>
+                      <div className={cn(isRtl && "text-right")}>
+                        <p className="text-sm font-bold text-white tracking-tight">{isRtl ? "العميل: سارة المكتوم" : "Client: Sarah Al-Maktoum"}</p>
+                        <p className="text-xs text-prestige-400">14:00 • {t("commercialLeaseReview")}</p>
                       </div>
-                      <button className="ml-auto w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/50 hover:text-white transition-all">
-                        <ArrowRight className="w-4 h-4" />
+                      <button className={cn("w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/50 hover:text-white transition-all", isRtl ? "mr-auto" : "ml-auto")}>
+                        <ArrowRight className={cn("w-4 h-4", isRtl && "rotate-180")} />
                       </button>
                     </div>
                   </motion.div>
@@ -202,20 +148,20 @@ function Home() {
                   <div className="grid md:grid-cols-3 gap-8">
                     {[
                       { 
-                        title: "Regulatory Intelligence", 
-                        desc: "Direct access to UAE Federal & Local decrees with semantic search.",
+                        title: t("regulatoryIntelligence"), 
+                        desc: t("regulatoryIntelligenceDesc"),
                         icon: Search,
                         color: "text-accent-gold"
                       },
                       { 
-                        title: "Technical Drafting", 
-                        desc: "AI-assisted outlines for memorandums, notices, and legal briefs.",
+                        title: t("technicalDrafting"), 
+                        desc: t("technicalDraftingDesc"),
                         icon: FileText,
                         color: "text-accent-indigo"
                       },
                       { 
-                        title: "Procedural Clarity", 
-                        desc: "Step-by-step litigation timelines and jurisdictional guidance.",
+                        title: t("proceduralClarity"), 
+                        desc: t("proceduralClarityDesc"),
                         icon: Gavel,
                         color: "text-emerald-500"
                       }
@@ -245,7 +191,7 @@ function Home() {
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-                          <span className="text-[10px] font-black text-white/50 uppercase tracking-widest">Global Legal Sync</span>
+                          <span className="text-[10px] font-black text-white/50 uppercase tracking-widest">{t("globalLegalSync")}</span>
                         </div>
                         <div className="flex -space-x-2">
                           {[1,2,3].map(i => (
@@ -323,8 +269,8 @@ function Home() {
               {[
                 { label: t("verifiedLaws"), val: "5,000+" },
                 { label: t("expertLawyers"), val: "150+" },
-                { label: "Consultations", val: "12k+" },
-                { label: "Client Rating", val: "4.9/5" }
+                { label: isRtl ? "استشارات" : "Consultations", val: "12k+" },
+                { label: isRtl ? "تقييم العملاء" : "Client Rating", val: "4.9/5" }
               ].map((s, i) => (
                 <div key={i} className="space-y-4">
                   <div className="text-5xl font-black text-accent-gold tracking-tighter">{s.val}</div>
@@ -358,7 +304,7 @@ function Assistant() {
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<any>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [user] = useAuthState(auth);
+  const { user } = useUser();
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
 
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -675,7 +621,10 @@ function Assistant() {
                 {t("askAssistant")}
               </h2>
               <p className="text-lg text-prestige-500 font-medium leading-relaxed">
-                Describe your situation or specify UAE law articles for a <span className="text-accent-gold font-bold">distinctive & polished</span> legal analysis.
+                {isRtl 
+                  ? "صف حالتك أو حدد مواد القانون الإماراتي للحصول على تحليل قانوني متميز ودقيق."
+                  : "Describe your situation or specify UAE law articles for a distinctive & polished legal analysis."
+                }
               </p>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-3xl px-6">
@@ -979,7 +928,7 @@ function Assistant() {
 }
 
 function Lawyers() {
-  const [user] = useAuthState(auth);
+  const { user } = useUser();
   const navigate = useNavigate();
   const { t, isRtl, language } = useLanguage();
   const [isAuthLoading, setIsAuthLoading] = useState(false);
@@ -1243,7 +1192,7 @@ function Lawyers() {
 
 function Appointments() {
   const navigate = useNavigate();
-  const [user] = useAuthState(auth);
+  const { user } = useUser();
   const { t, isRtl } = useLanguage();
   const [appointments, setAppointments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1404,21 +1353,24 @@ function Appointments() {
 export default function App() {
   return (
     <BrowserRouter>
-      <Layout>
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/assistant" element={<Assistant />} />
-          <Route path="/laws" element={<BrowseLaws />} />
-          <Route path="/lawyers" element={<Lawyers />} />
-          <Route path="/lawyers/:id" element={<LawyerProfile />} />
-          <Route path="/register-lawyer" element={<LawyerRegistration />} />
-          <Route path="/lawyer/dashboard" element={<LawyerDashboard />} />
-          <Route path="/lawyer/assistant" element={<LawyerAssistant />} />
-          <Route path="/management" element={<Management />} />
-          <Route path="/appointments" element={<Appointments />} />
-          <Route path="/history" element={<History />} />
-        </Routes>
-      </Layout>
+      <UserProvider>
+        <Layout>
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/assistant" element={<Assistant />} />
+            <Route path="/laws" element={<Legislation />} />
+            <Route path="/lawyers" element={<Lawyers />} />
+            <Route path="/lawyers/:id" element={<LawyerProfile />} />
+            <Route path="/register-lawyer" element={<LawyerRegistration />} />
+            <Route path="/lawyer/dashboard" element={<LawyerDashboard />} />
+            <Route path="/lawyer/assistant" element={<LawyerAssistant />} />
+            <Route path="/management" element={<Management />} />
+            <Route path="/support" element={<Support />} />
+            <Route path="/appointments" element={<Appointments />} />
+            <Route path="/history" element={<History />} />
+          </Routes>
+        </Layout>
+      </UserProvider>
     </BrowserRouter>
   );
 }

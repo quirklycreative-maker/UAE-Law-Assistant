@@ -51,7 +51,7 @@ export default function History() {
         </div>
         <div className="text-center space-y-4 max-w-sm">
           <h2 className="text-4xl font-black text-prestige-950 tracking-tighter leading-tight">{t("signInToView")}</h2>
-          <p className="text-prestige-500 font-medium">Access your secure history of legal consultations and AI-driven case analyses.</p>
+          <p className="text-prestige-500 font-medium">{t("historyDesc") || "Access your secure history of legal consultations and AI-driven case analyses."}</p>
         </div>
         <button 
           onClick={async () => {
@@ -63,7 +63,7 @@ export default function History() {
           }}
           className="px-12 py-5 bg-prestige-950 text-white rounded-2xl font-black hover:bg-accent-indigo transition-all shadow-2xl shadow-prestige-950/20 active:scale-95"
         >
-          {t("signIn") || "Sign In with Google"}
+          {t("signInGoogle") || "Sign In with Google"}
         </button>
       </div>
     );
@@ -81,7 +81,7 @@ export default function History() {
             <div className="w-8 h-8 bg-accent-gold/10 rounded-lg flex items-center justify-center text-accent-gold">
               <Scale className="w-5 h-5" />
             </div>
-            <span className="text-[10px] font-black text-accent-gold uppercase tracking-[0.3em]">Secure Records</span>
+            <span className="text-[10px] font-black text-accent-gold uppercase tracking-[0.3em]">{t("secureRecords") || "Secure Records"}</span>
           </div>
           <h2 className="text-3xl font-black text-prestige-900 tracking-tighter leading-none">
             {t("legalHistory") || "Legal History"}
@@ -98,7 +98,7 @@ export default function History() {
           ) : conversations.length === 0 ? (
             <div className="p-12 text-center space-y-4 bg-white rounded-[2rem] border border-dashed border-prestige-100">
               <MessageSquare className="w-12 h-12 text-prestige-100 mx-auto" />
-              <p className="text-sm text-prestige-400 font-bold uppercase tracking-widest">{t("noConversations") || "No history found"}</p>
+              <p className="text-sm text-prestige-400 font-bold uppercase tracking-widest">{t("noHistoryFound") || "No history found"}</p>
             </div>
           ) : (
             conversations.map((chat) => (
@@ -131,7 +131,7 @@ export default function History() {
                     "text-base font-black truncate leading-tight tracking-tight",
                     selectedId === chat.id ? "text-white" : "text-prestige-900"
                   )}>
-                    {chat.messages[0]?.text || "New Inquiry"}
+                    {chat.messages[0]?.text || t("newInquiry") || "New Inquiry"}
                   </p>
                 </div>
                 <ChevronRight className={cn(
@@ -165,7 +165,7 @@ export default function History() {
                     <ChevronRight className={cn("w-6 h-6", isRtl ? "rotate-0" : "rotate-180")} />
                   </button>
                   <div className={cn(isRtl ? "text-right" : "text-left")}>
-                    <h3 className="text-2xl font-black text-prestige-950 tracking-tighter">{t("caseAnalysisReference") || "Case Analysis Archive"}</h3>
+                    <h3 className="text-2xl font-black text-prestige-950 tracking-tighter">{t("caseAnalysisArchive") || "Case Analysis Archive"}</h3>
                     <p className="text-xs text-prestige-400 font-bold uppercase tracking-widest mt-1">
                        {t("recordedOn") || "Session ID"} • {format(selectedChat.createdAt, 'MMMM do, yyyy')}
                     </p>
@@ -195,7 +195,7 @@ export default function History() {
                         isRtl && m.role === 'user' ? "flex-row-reverse" : "flex-row"
                       )}>
                         <div className={cn("w-1.5 h-1.5 rounded-full", m.role === 'user' ? "bg-prestige-300" : "bg-accent-indigo animate-pulse")} />
-                        {m.role === 'user' ? (t("inquiry") || "Client Inquiry") : (t("systemResponse") || "Intelligence Report")}
+                        {m.role === 'user' ? (t("inquiry") || "Client Inquiry") : (t("intelligenceReport") || "Intelligence Report")}
                       </div>
                       <div className={cn(
                         "leading-loose rounded-[2.5rem] shadow-2xl",
@@ -231,7 +231,7 @@ export default function History() {
                         <ShieldCheck className="w-8 h-8" />
                       </div>
                       <div className={cn(isRtl ? "text-right" : "text-left")}>
-                        <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-2">{t("privacySafeguard") || "Privacy Protocols"}</p>
+                        <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-2">{t("privacyProtocols") || "Privacy Protocols"}</p>
                         <p className="text-prestige-500 font-medium leading-relaxed">
                           {t("privacyNote") || "For your security, original legal documents uploaded during this session were processed strictly in-memory and have been purged. Only the vertical AI summary and strategic references are retained in this archive."}
                         </p>
@@ -247,8 +247,8 @@ export default function History() {
                 <Search className="w-10 h-10" />
               </div>
               <div className="space-y-2">
-                <h3 className="text-2xl font-black text-prestige-950">Select an Archive</h3>
-                <p className="text-prestige-500 font-medium">Browse your legal history from the sidebar to review past analyses and references.</p>
+                <h3 className="text-2xl font-black text-prestige-950">{t("selectArchive") || "Select an Archive"}</h3>
+                <p className="text-prestige-500 font-medium">{t("selectArchiveDesc") || "Browse your legal history from the sidebar to review past analyses and references."}</p>
               </div>
             </div>
           )}

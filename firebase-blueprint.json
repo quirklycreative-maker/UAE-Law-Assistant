@@ -169,6 +169,47 @@
         "required": ["email", "addedAt"]
       },
       "description": "White-list of emails authorized to use lawyer features."
+    },
+    "support_sessions/{sessionId}": {
+      "schema": {
+        "type": "object",
+        "properties": {
+          "userId": { "type": "string" },
+          "userEmail": { "type": "string" },
+          "userRole": { "type": "string", "enum": ["client", "lawyer"] },
+          "messages": { "type": "array" },
+          "status": { "type": "string", "enum": ["active", "resolved"] },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        },
+        "required": ["userId", "userRole", "messages", "updatedAt"]
+      },
+      "description": "Customer support interactions with AI and admin visibility."
+    },
+    "admins/{userId}": {
+      "schema": {
+        "type": "object",
+        "properties": {
+          "userId": { "type": "string" },
+          "role": { "type": "string", "enum": ["super", "manager"] },
+          "addedAt": { "type": "string", "format": "date-time" }
+        },
+        "required": ["userId", "role", "addedAt"]
+      },
+      "description": "Platform administrators with elevated permissions."
+    },
+    "usage_stats/{statId}": {
+      "schema": {
+        "type": "object",
+        "properties": {
+          "type": { "type": "string", "enum": ["gemini_query", "legal_search", "document_generation"] },
+          "userId": { "type": "string" },
+          "tokens": { "type": "number" },
+          "timestamp": { "type": "string", "format": "date-time" },
+          "status": { "type": "string", "enum": ["success", "error"] }
+        },
+        "required": ["type", "timestamp", "status"]
+      },
+      "description": "System-wide API and tool usage metrics."
     }
   }
 }

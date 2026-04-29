@@ -110,8 +110,22 @@ export default function LawyerAssistant() {
           handleFirestoreError(err, currentChatId ? OperationType.UPDATE : OperationType.CREATE, path);
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Technical co-pilot error:", error);
+      const errorMessage = error?.message || "";
+      let userFriendlyError = "An error occurred while communicating with the AI Strategic Associate.";
+      
+      if (errorMessage.includes("UNAVAILABLE") || errorMessage.includes("503")) {
+        userFriendlyError = "The AI service is currently experiencing high demand. Please try again in a few moments.";
+      } else if (errorMessage.includes("permissions") || errorMessage.includes("insufficient")) {
+        userFriendlyError = "System permission error. Please refresh and try again.";
+      }
+
+      setMessages(prev => [...prev, { 
+        role: 'model', 
+        text: `⚠️ **${userFriendlyError}**`, 
+        timestamp: Date.now() 
+      }]);
     } finally {
       setIsLoading(false);
       isSending.current = false;

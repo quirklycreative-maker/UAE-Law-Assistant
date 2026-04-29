@@ -173,7 +173,7 @@ export default function LawyerProfile() {
       <div className="min-h-screen flex items-center justify-center bg-prestige-50">
         <div className="text-center space-y-4">
           <Loader2 className="w-12 h-12 text-accent-indigo animate-spin mx-auto" />
-          <p className="text-prestige-400 font-black uppercase tracking-widest text-xs">Loading Profile...</p>
+          <p className="text-prestige-400 font-black uppercase tracking-widest text-xs">{t("loadingProfile")}</p>
         </div>
       </div>
     );
@@ -186,12 +186,12 @@ export default function LawyerProfile() {
           <div className="w-20 h-20 bg-prestige-100 rounded-full flex items-center justify-center mx-auto text-prestige-300">
             <ShieldCheck className="w-10 h-10" />
           </div>
-          <h2 className="text-3xl font-black text-prestige-950">Expert Not Found</h2>
+          <h2 className="text-3xl font-black text-prestige-950">{t("expertNotFound")}</h2>
           <button 
             onClick={() => navigate("/lawyers")}
             className="px-8 py-3 bg-accent-indigo text-white rounded-xl font-bold hover:bg-prestige-950 transition-all"
           >
-            Return to Directory
+            {t("returnToDirectory")}
           </button>
         </div>
       </div>
@@ -206,15 +206,18 @@ export default function LawyerProfile() {
         <img 
           src={lawyer.image} 
           alt="cover" 
-          className="w-full h-full object-cover opacity-30 blur-sm scale-110"
+          className="w-full h-full object-cover opacity-30 blur-sm scale-110 px-0"
         />
         
         <div className="container mx-auto px-6 relative z-20 h-full flex items-end pb-12">
           <button 
             onClick={() => navigate(-1)}
-            className="absolute top-8 left-6 p-3 bg-white/10 backdrop-blur-md rounded-full text-white hover:bg-white/20 transition-all border border-white/10"
+            className={cn(
+              "absolute top-8 p-3 bg-white/10 backdrop-blur-md rounded-full text-white hover:bg-white/20 transition-all border border-white/10",
+              isRtl ? "right-6" : "left-6"
+            )}
           >
-            <ArrowLeft className="w-5 h-5" />
+            <ArrowLeft className={cn("w-5 h-5", isRtl && "rotate-180")} />
           </button>
         </div>
       </div>
@@ -234,7 +237,10 @@ export default function LawyerProfile() {
                   <img src={lawyer.image} alt={lawyer.name} className="w-full h-full object-cover" />
                 </div>
                 {lawyer.isVerified && (
-                  <div className="absolute -bottom-2 -right-2 bg-accent-gold p-2 rounded-xl shadow-lg border-2 border-white">
+                  <div className={cn(
+                    "absolute -bottom-2 bg-accent-gold p-2 rounded-xl shadow-lg border-2 border-white",
+                    isRtl ? "-left-2" : "-right-2"
+                  )}>
                     <CheckCircle2 className="w-5 h-5 text-prestige-950" />
                   </div>
                 )}
@@ -251,18 +257,18 @@ export default function LawyerProfile() {
                     <Star className="w-4 h-4 text-accent-gold fill-accent-gold" />
                     <span className="text-lg font-black text-prestige-950">{lawyer.rating}</span>
                   </div>
-                  <span className="text-[10px] font-bold text-prestige-400 uppercase tracking-widest">{lawyer.reviews} Reviews</span>
+                  <span className="text-[10px] font-bold text-prestige-400 uppercase tracking-widest">{lawyer.reviews} {t("reviewCount")}</span>
                 </div>
                 <div className="w-px h-10 bg-prestige-50" />
                 <div className="text-center">
                   <div className="text-lg font-black text-prestige-950 mb-1">{lawyer.experience || "10+ Years"}</div>
-                  <span className="text-[10px] font-bold text-prestige-400 uppercase tracking-widest">Experience</span>
+                  <span className="text-[10px] font-bold text-prestige-400 uppercase tracking-widest">{t("experienceLabel")}</span>
                 </div>
               </div>
 
               <div className="space-y-6 pt-6 border-t border-prestige-50">
                 <div className="space-y-4">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-prestige-400 block text-start">1. Choose Date</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-prestige-400 block text-start">1. {t("chooseDate")}</label>
                   <input 
                     type="date" 
                     min={today}
@@ -276,7 +282,7 @@ export default function LawyerProfile() {
                 </div>
 
                 <div className="space-y-4">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-prestige-400 block text-start">2. Choose Time</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-prestige-400 block text-start">2. {t("chooseTime")}</label>
                   <div className="grid grid-cols-2 gap-2">
                     {timeSlots.length > 0 ? (
                       timeSlots.map((time) => {
@@ -302,7 +308,7 @@ export default function LawyerProfile() {
                       <div className="col-span-2 py-8 bg-amber-50 rounded-2xl border border-amber-100 flex flex-col items-center justify-center gap-2">
                         <Coffee className="w-8 h-8 text-amber-500 animate-pulse" />
                         <span className="text-[10px] font-black text-amber-700 uppercase tracking-widest text-center">
-                          No slots available. <br/> {lawyer?.isOOO ? "Lawyer is currently Out of Office." : "Please choose another date."}
+                          {t("noSlotsAvailable") || "No slots available."} <br/> {lawyer?.isOOO ? t("oooToggle") : t("selectArchiveDesc")}
                         </span>
                       </div>
                     )}
@@ -310,7 +316,7 @@ export default function LawyerProfile() {
                 </div>
 
                 <div className="space-y-4">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-prestige-400 block text-start">3. Consultation Type</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-prestige-400 block text-start">3. {t("consultationType")}</label>
                   <div className="flex bg-prestige-50 p-1 rounded-2xl border border-prestige-100">
                     <button 
                       onClick={() => setMeetingType('video')}
@@ -319,7 +325,7 @@ export default function LawyerProfile() {
                         meetingType === 'video' ? "bg-white text-accent-indigo shadow-sm" : "text-prestige-400"
                       )}
                     >
-                      <ShieldCheck className="w-4 h-4" /> Video Call
+                      <ShieldCheck className="w-4 h-4" /> {t("videoCall")}
                     </button>
                     <button 
                       onClick={() => setMeetingType('in-person')}
@@ -328,7 +334,7 @@ export default function LawyerProfile() {
                         meetingType === 'in-person' ? "bg-white text-accent-indigo shadow-sm" : "text-prestige-400"
                       )}
                     >
-                      <MapPin className="w-4 h-4" /> In-Person
+                      <MapPin className="w-4 h-4" /> {t("inPerson")}
                     </button>
                   </div>
                   {meetingType === 'video' && (
@@ -337,18 +343,21 @@ export default function LawyerProfile() {
                         <img src="https://www.gstatic.com/images/branding/product/2x/meet_48dp.png" alt="Meet" className="w-5 h-5" />
                       </div>
                       <p className="text-[9px] font-bold text-accent-indigo leading-tight text-start">
-                        A secure Google Meet link will be generated for this session.
+                        {t("meetLinkNote")}
                       </p>
                     </div>
                   )}
                 </div>
 
-                <div className="flex items-center justify-between px-6 py-5 bg-prestige-950 text-white rounded-3xl border border-white/10 shadow-2xl shadow-prestige-950/20">
+                <div className={cn(
+                  "flex items-center justify-between px-6 py-5 bg-prestige-950 text-white rounded-3xl border border-white/10 shadow-2xl shadow-prestige-950/20",
+                  isRtl && "flex-row-reverse"
+                )}>
                   <div className="text-start">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-prestige-400 block mb-1">Final Total</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-prestige-400 block mb-1">{t("finalTotal")}</span>
                     <div className="flex items-baseline gap-1">
                       <span className="text-3xl font-black">{lawyer.price}</span>
-                      <span className="text-xs font-bold text-accent-gold uppercase tracking-[0.2em]">AED</span>
+                      <span className="text-xs font-bold text-accent-gold uppercase tracking-[0.2em]">{t("currency")}</span>
                     </div>
                   </div>
                   <button 
@@ -357,7 +366,7 @@ export default function LawyerProfile() {
                     className="px-8 py-4 bg-accent-gold text-prestige-950 rounded-2xl font-black hover:bg-white transition-all flex items-center justify-center gap-3 active:scale-95 disabled:opacity-50 disabled:grayscale"
                   >
                     {isBooking ? <Loader2 className="w-5 h-5 animate-spin" /> : <Calendar className="w-5 h-5" />}
-                    Book Now
+                    {t("bookNow")}
                   </button>
                 </div>
               </div>
@@ -366,7 +375,7 @@ export default function LawyerProfile() {
             {/* Qualifications */}
             <div className="bg-white p-8 rounded-[3rem] border border-prestige-100 shadow-xl shadow-prestige-900/5 space-y-6 text-start">
                <h3 className="text-sm font-black uppercase tracking-widest text-prestige-900 flex items-center gap-3">
-                 <GraduationCap className="w-5 h-5 text-accent-gold" /> Education
+                 <GraduationCap className="w-5 h-5 text-accent-gold" /> {t("education")}
                </h3>
                <ul className="space-y-4">
                  {(lawyer.education || ["Zayed University, LLB"]).map((edu, i) => (
@@ -381,7 +390,7 @@ export default function LawyerProfile() {
             {/* Languages */}
             <div className="bg-white p-8 rounded-[3rem] border border-prestige-100 shadow-xl shadow-prestige-900/5 space-y-6 text-start">
                <h3 className="text-sm font-black uppercase tracking-widest text-prestige-900 flex items-center gap-3">
-                 <Languages className="w-5 h-5 text-accent-gold" /> Languages
+                 <Languages className="w-5 h-5 text-accent-gold" /> {t("languages")}
                </h3>
                <div className="flex flex-wrap gap-2">
                  {(lawyer.languages || ["Arabic", "English"]).map((lang, i) => (
@@ -401,17 +410,34 @@ export default function LawyerProfile() {
               className="bg-white p-12 rounded-[4rem] border border-prestige-100 shadow-xl shadow-prestige-900/5 space-y-8"
             >
               <div className="space-y-6">
-                <h2 className="text-4xl font-black text-prestige-950 tracking-tighter leading-none">Professional <span className="text-accent-gold italic serif font-normal">Biography</span></h2>
+                <h2 className="text-4xl font-black text-prestige-950 tracking-tighter leading-none">
+                  {t("professional")} <span className="text-accent-gold italic serif font-normal">{t("biography")}</span>
+                </h2>
                 <p className="text-lg text-prestige-500 font-medium leading-relaxed">
                   {lawyer.bio}
                 </p>
                 <p className="text-prestige-500 font-medium leading-relaxed">
-                  With a deep understanding of standard UAE practices and local regulations, I provide strategic legal support tailored to the unique needs of each client. My approach is results-oriented, focusing on compliance, efficiency, and professional integrity.
+                  {isRtl 
+                    ? "مع فهم عميق للممارسات القياسية في دولة الإمارات العربية المتحدة واللوائح المحلية، أقدم دعماً قانونياً استراتيجياً مخصصاً للاحتياجات الفريدة لكل عميل. يعتمد نهجي على النتائج، مع التركيز على الامتثال والكفاءة والنزاهة المهنية."
+                    : "With a deep understanding of standard UAE practices and local regulations, I provide strategic legal support tailored to the unique needs of each client. My approach is results-oriented, focusing on compliance, efficiency, and professional integrity."
+                  }
                 </p>
               </div>
 
               <div className="grid sm:grid-cols-2 gap-6 pt-10 border-t border-prestige-50">
-                 {[
+                 {isRtl ? [
+                   "معتمد من وزارة العدل الإماراتية",
+                   "خبير في اللوائح المحلية والاتحادية",
+                   "أخصائي حل النزاعات",
+                   "مرخص لجميع محاكم الإمارات"
+                 ].map((item, i) => (
+                    <div key={i} className="flex items-center gap-4 group">
+                       <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-all shadow-sm">
+                         <Check className="w-5 h-5" />
+                       </div>
+                       <span className="text-sm text-prestige-900 font-extrabold tracking-tight">{item}</span>
+                    </div>
+                  )) : [
                    "Certified by UAE Ministry of Justice",
                    "Expert in Local & Federal Regulations",
                    "Dispute Resolution Specialist",
@@ -430,7 +456,9 @@ export default function LawyerProfile() {
             {/* Reviews Section */}
             <div className="bg-white p-12 rounded-[4rem] border border-prestige-100 shadow-xl shadow-prestige-900/5 space-y-12">
                <div className="flex items-center justify-between">
-                  <h2 className="text-3xl font-black text-prestige-950 tracking-tighter leading-none">Client <span className="text-accent-indigo italic serif font-normal">Feedback</span></h2>
+                  <h2 className="text-3xl font-black text-prestige-950 tracking-tighter leading-none">
+                    {t("client")} <span className="text-accent-indigo italic serif font-normal">{t("clientFeedback").split("Feedback")[1] || "Feedback"}</span>
+                  </h2>
                   <div className="flex items-center gap-2 px-5 py-2 bg-accent-gold/10 rounded-full border border-accent-gold/20">
                      <Star className="w-4 h-4 text-accent-gold fill-accent-gold" />
                      <span className="text-sm font-black text-accent-gold">{lawyer.rating} Average Rating</span>
@@ -440,12 +468,12 @@ export default function LawyerProfile() {
                <div className="space-y-8">
                  {(lawyer.reviewList || []).map((review, i) => (
                    <div key={review.id} className="space-y-6 p-8 bg-prestige-50 rounded-[2.5rem] border border-prestige-100 hover:border-accent-indigo transition-all duration-500">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
+                      <div className={cn("flex items-center justify-between", isRtl && "flex-row-reverse")}>
+                        <div className={cn("flex items-center gap-4", isRtl && "flex-row-reverse")}>
                            <div className="w-12 h-12 rounded-2xl overflow-hidden border-2 border-white shadow-md">
                              <img src={review.userImage} alt={review.userName} className="w-full h-full object-cover" />
                            </div>
-                           <div>
+                           <div className={cn(isRtl && "text-right")}>
                              <h4 className="font-black text-prestige-950 leading-tight">{review.userName}</h4>
                              <span className="text-[10px] font-bold text-prestige-400 uppercase tracking-widest">{review.date}</span>
                            </div>
@@ -462,7 +490,7 @@ export default function LawyerProfile() {
                            ))}
                         </div>
                       </div>
-                      <p className="text-prestige-600 font-medium leading-relaxed italic">
+                      <p className={cn("text-prestige-600 font-medium leading-relaxed italic", isRtl && "text-right")}>
                         "{review.comment}"
                       </p>
                    </div>
@@ -470,7 +498,7 @@ export default function LawyerProfile() {
                </div>
 
                <button className="w-full py-4 border-2 border-dashed border-prestige-200 rounded-[2rem] text-prestige-400 font-black uppercase tracking-widest text-xs hover:border-accent-indigo hover:text-accent-indigo transition-all flex items-center justify-center gap-2">
-                 <MessageSquare className="w-4 h-4" /> Load More Reviews
+                 <MessageSquare className="w-4 h-4" /> {t("loadMoreReviews")}
                </button>
             </div>
           </div>
@@ -499,30 +527,30 @@ export default function LawyerProfile() {
               </div>
               
               <div className="space-y-4">
-                <h3 className="text-3xl font-black text-prestige-950 tracking-tighter">Confirm <span className="text-accent-indigo italic serif font-normal">Booking</span></h3>
+                <h3 className="text-3xl font-black text-prestige-950 tracking-tighter">{t("confirmBooking").split("Booking")[0]} <span className="text-accent-indigo italic serif font-normal">{t("scheduling") || "Booking"}</span></h3>
                 <p className="text-prestige-500 font-medium leading-relaxed">
-                  Book a consultation with <span className="text-prestige-950 font-bold">{lawyer.name}</span> for <span className="text-accent-indigo font-bold">{lawyer.price} AED</span>?
+                  {t("bookConsultationWith")} <span className="text-prestige-950 font-bold">{lawyer.name}</span> {isRtl ? "مقابل" : "for"} <span className="text-accent-indigo font-bold">{lawyer.price} {t("currency")}</span>?
                 </p>
-                <div className="p-4 bg-emerald-50 border border-emerald-100 rounded-2xl text-[10px] font-bold text-emerald-700 flex items-center gap-3">
-                  <ShieldCheck className="w-4 h-4" />
-                  Your booking request will be shared with the expert for final confirmation.
+                <div className="p-4 bg-emerald-50 border border-emerald-100 rounded-2xl text-[10px] font-bold text-emerald-700 flex items-center gap-3 text-start">
+                  <ShieldCheck className="w-4 h-4 shrink-0" />
+                  {t("meetLinkSharedNote")}
                 </div>
                 <div className="p-4 bg-prestige-50 rounded-2xl text-start space-y-2 border border-prestige-100">
-                  <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-prestige-400">
-                    <span>Expert</span>
+                  <div className={cn("flex justify-between text-[10px] font-black uppercase tracking-widest text-prestige-400", isRtl && "flex-row-reverse")}>
+                    <span>{t("lawyer")}</span>
                     <span>{lawyer.name}</span>
                   </div>
-                  <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-prestige-400">
-                    <span>Schedule</span>
-                    <span className="text-prestige-950">{selectedDate} at {selectedTime}</span>
+                  <div className={cn("flex justify-between text-[10px] font-black uppercase tracking-widest text-prestige-400", isRtl && "flex-row-reverse text-right")}>
+                    <span>{t("schedule")}</span>
+                    <span className="text-prestige-950">{selectedDate} {isRtl ? "في" : "at"} {selectedTime}</span>
                   </div>
-                  <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-prestige-400">
-                    <span>Type</span>
-                    <span className="text-accent-indigo">{meetingType === 'video' ? 'Google Meet Video' : 'In-Person'}</span>
+                  <div className={cn("flex justify-between text-[10px] font-black uppercase tracking-widest text-prestige-400", isRtl && "flex-row-reverse")}>
+                    <span>{t("type")}</span>
+                    <span className="text-accent-indigo">{meetingType === 'video' ? t("videoCall") : t("inPerson")}</span>
                   </div>
-                  <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-prestige-400 pt-2 border-t border-prestige-100 mt-2">
-                    <span>Total Fee</span>
-                    <span className="text-prestige-950 font-black">{lawyer.price} AED</span>
+                  <div className={cn("flex justify-between text-[10px] font-black uppercase tracking-widest text-prestige-400 pt-2 border-t border-prestige-100 mt-2", isRtl && "flex-row-reverse")}>
+                    <span>{t("finalTotal")}</span>
+                    <span className="text-prestige-950 font-black">{lawyer.price} {t("currency")}</span>
                   </div>
                 </div>
               </div>
@@ -532,13 +560,13 @@ export default function LawyerProfile() {
                   onClick={() => setShowConfirm(false)}
                   className="px-6 py-4 bg-prestige-100 text-prestige-600 rounded-2xl font-black hover:bg-prestige-200 transition-all active:scale-95"
                 >
-                  Cancel
+                  {t("back")}
                 </button>
                 <button 
                   onClick={confirmBooking}
                   className="px-6 py-4 bg-prestige-950 text-white rounded-2xl font-black hover:bg-accent-indigo transition-all shadow-xl shadow-prestige-950/20 active:scale-95"
                 >
-                  Confirm
+                  {t("authorize")}
                 </button>
               </div>
             </motion.div>

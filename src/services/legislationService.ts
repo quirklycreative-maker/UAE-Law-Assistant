@@ -1,6 +1,7 @@
 /// <reference types="vite/client" />
 import { collection, query, where, getDocs, limit, orderBy } from "firebase/firestore";
 import { db, handleFirestoreError, OperationType } from "../lib/firebase";
+import { logUsage } from "../lib/usage";
 
 export interface LawSnippet {
   id: string;
@@ -94,6 +95,8 @@ export async function searchLocalLegislation(keyword: string): Promise<LawSnippe
 
     // Combine with mock data for robust initial experience
     const allResults = [...dbResults, ...MOCK_LEGISLATION];
+
+    logUsage('legal_search', 'success');
 
     return allResults.filter(law => 
       law.title.toLowerCase().includes(keyword.toLowerCase()) || 

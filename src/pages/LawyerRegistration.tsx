@@ -27,10 +27,10 @@ import { auth, db, handleFirestoreError, OperationType } from "../lib/firebase";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 
 const STEPS = [
-  { id: 1, title: "Identity", icon: User },
-  { id: 2, title: "Expertise", icon: Briefcase },
-  { id: 3, title: "Credentials", icon: ShieldCheck },
-  { id: 4, title: "Availability", icon: Clock },
+  { id: 1, title: "identity", icon: User },
+  { id: 2, title: "expertise", icon: Briefcase },
+  { id: 3, title: "credentials", icon: ShieldCheck },
+  { id: 4, title: "availability", icon: Clock },
 ];
 
 export default function LawyerRegistration() {
@@ -186,16 +186,16 @@ export default function LawyerRegistration() {
             <CheckCircle2 className="w-12 h-12 text-emerald-500" />
           </div>
           <div className="space-y-4">
-            <h2 className="text-4xl font-black text-prestige-950 tracking-tighter">Application <span className="text-accent-gold italic serif font-normal">Received</span></h2>
+            <h2 className="text-4xl font-black text-prestige-950 tracking-tighter">{t("application") || "Application"} <span className="text-accent-gold italic serif font-normal">{t("received")}</span></h2>
             <p className="text-prestige-500 font-medium leading-relaxed">
-              Thank you for applying to join JusticeFlow. Our validation team will review your credentials and get back to you via email within 48 hours.
+              {t("applicationReceivedDesc")}
             </p>
           </div>
           <button 
             onClick={() => navigate("/")}
             className="w-full py-5 bg-prestige-950 text-white rounded-2xl font-black hover:bg-accent-indigo transition-all"
           >
-            Return Home
+            {t("returnHome")}
           </button>
         </motion.div>
       </div>
@@ -210,11 +210,11 @@ export default function LawyerRegistration() {
         <div className="text-center space-y-4">
           <div className="inline-flex items-center gap-3 px-4 py-2 bg-accent-indigo/5 rounded-full border border-accent-indigo/10">
             <Scale className="w-4 h-4 text-accent-indigo" />
-            <span className="text-[10px] font-black text-accent-indigo uppercase tracking-[0.2em]">Join the Network</span>
+            <span className="text-[10px] font-black text-accent-indigo uppercase tracking-[0.2em]">{t("joinNetwork") || "Join the Network"}</span>
           </div>
-          <h1 className="text-5xl font-black text-prestige-950 tracking-tighter">Register as an <span className="text-accent-gold italic serif font-normal">Expert</span></h1>
+          <h1 className="text-5xl font-black text-prestige-950 tracking-tighter">{t("registerAsExpert").split("expert")[0]} <span className="text-accent-gold italic serif font-normal">{t("expert")}</span></h1>
           <p className="text-prestige-500 font-medium max-w-xl mx-auto">
-            Expand your legal practice and connect with thousands of clients across the UAE.
+            {t("registerAsExpertDesc")}
           </p>
         </div>
 
@@ -232,8 +232,8 @@ export default function LawyerRegistration() {
                   <s.icon className="w-5 h-5" />
                 </div>
                 <div className="hidden lg:block text-start">
-                  <p className={cn("text-[10px] font-black uppercase tracking-widest leading-none", step >= s.id ? "text-accent-gold" : "text-prestige-600")}>Step 0{s.id}</p>
-                  <p className={cn("text-sm font-bold", step >= s.id ? "text-white" : "text-prestige-600")}>{s.title}</p>
+                  <p className={cn("text-[10px] font-black uppercase tracking-widest leading-none", step >= s.id ? "text-accent-gold" : "text-prestige-600")}>{t("step")} 0{s.id}</p>
+                  <p className={cn("text-sm font-bold", step >= s.id ? "text-white" : "text-prestige-600")}>{t(s.title)}</p>
                 </div>
               </div>
             ))}
@@ -253,14 +253,14 @@ export default function LawyerRegistration() {
                     className="space-y-6"
                   >
                     <div className="space-y-2">
-                       <h3 className="text-xl font-black text-prestige-950 tracking-tight">Identity Details</h3>
-                       <p className="text-xs text-prestige-400 font-bold uppercase tracking-wider">Please provide your official contact information</p>
+                       <h3 className="text-xl font-black text-prestige-950 tracking-tight">{t("identityDetails")}</h3>
+                       <p className="text-xs text-prestige-400 font-bold uppercase tracking-wider">{t("identityDetailsDesc")}</p>
                     </div>
                     
                     <div className="grid md:grid-cols-2 gap-6">
                       <div className="space-y-2">
                         <label className="text-[10px] font-black uppercase tracking-widest text-prestige-500 flex items-center gap-2">
-                          <User className="w-3 h-3" /> Full Legal Name
+                          <User className="w-3 h-3" /> {t("fullLegalName")}
                         </label>
                         <input 
                           type="text" 
@@ -268,13 +268,13 @@ export default function LawyerRegistration() {
                           required
                           value={formData.fullName}
                           onChange={handleInputChange}
-                          placeholder="As per Emirates ID"
+                          placeholder={t("emiratesIdPlaceholder") || "As per Emirates ID"}
                           className="w-full px-5 py-4 bg-prestige-50 border border-prestige-100 rounded-2xl focus:ring-2 focus:ring-accent-indigo focus:border-transparent outline-none transition-all font-bold text-prestige-950"
                         />
                       </div>
                       <div className="space-y-2">
                         <label className="text-[10px] font-black uppercase tracking-widest text-prestige-500 flex items-center gap-2">
-                          <Mail className="w-3 h-3" /> Professional Email
+                          <Mail className="w-3 h-3" /> {t("professionalEmail")}
                         </label>
                         <input 
                           type="email" 
@@ -289,12 +289,15 @@ export default function LawyerRegistration() {
                       <div className="space-y-2 md:col-span-2">
                         <label className="text-[10px] font-black uppercase tracking-widest text-prestige-500 flex items-center justify-between gap-2">
                           <span className="flex items-center gap-2">
-                            <Phone className="w-3 h-3" /> Contact Phone
+                            <Phone className="w-3 h-3" /> {t("contactPhone")}
                           </span>
-                          <span className="text-accent-gold">UAE Numbers Only</span>
+                          <span className="text-accent-gold">{t("uaeNumbersOnly") || "UAE Numbers Only"}</span>
                         </label>
                         <div className="relative">
-                          <div className="absolute left-5 top-1/2 -translate-y-1/2 flex items-center gap-1 border-r border-prestige-100 pr-3">
+                          <div className={cn(
+                            "absolute top-1/2 -translate-y-1/2 flex items-center gap-1 border-prestige-100 pr-3",
+                            isRtl ? "right-5 border-l pl-3" : "left-5 border-r pr-3"
+                          )}>
                             <span className="text-xs font-black text-prestige-400">+971</span>
                           </div>
                           <input 
@@ -304,7 +307,10 @@ export default function LawyerRegistration() {
                             value={formData.phone}
                             onChange={handleInputChange}
                             placeholder="5X XXX XXXX"
-                            className="w-full pl-20 pr-5 py-4 bg-prestige-50 border border-prestige-100 rounded-2xl focus:ring-2 focus:ring-accent-indigo focus:border-transparent outline-none transition-all font-bold text-prestige-950"
+                            className={cn(
+                              "w-full py-4 bg-prestige-50 border border-prestige-100 rounded-2xl focus:ring-2 focus:ring-accent-indigo focus:border-transparent outline-none transition-all font-bold text-prestige-950",
+                              isRtl ? "pr-20 pl-5" : "pl-20 pr-5"
+                            )}
                           />
                         </div>
                       </div>
@@ -321,14 +327,14 @@ export default function LawyerRegistration() {
                     className="space-y-6"
                   >
                     <div className="space-y-2">
-                       <h3 className="text-xl font-black text-prestige-950 tracking-tight">Legal Expertise</h3>
-                       <p className="text-xs text-prestige-400 font-bold uppercase tracking-wider">Highlight your specialization and experience</p>
+                       <h3 className="text-xl font-black text-prestige-950 tracking-tight">{t("legalExpertise")}</h3>
+                       <p className="text-xs text-prestige-400 font-bold uppercase tracking-wider">{t("legalExpertiseDesc")}</p>
                     </div>
 
                     <div className="grid md:grid-cols-2 gap-6">
                       <div className="space-y-4 md:col-span-2">
                         <label className="text-[10px] font-black uppercase tracking-widest text-prestige-500 flex items-center gap-2">
-                          <Briefcase className="w-3 h-3" /> Area(s) of Specialization
+                          <Briefcase className="w-3 h-3" /> {t("specializationLabel")}
                         </label>
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                           {SPECIALIZATIONS.map((spec) => (
@@ -351,9 +357,9 @@ export default function LawyerRegistration() {
                       <div className="space-y-3">
                         <label className="text-[10px] font-black uppercase tracking-widest text-prestige-500 flex items-center justify-between gap-2">
                           <span className="flex items-center gap-2">
-                            <CheckCircle2 className="w-3 h-3" /> Years of Practice
+                            <CheckCircle2 className="w-3 h-3" /> {t("yearsOfPractice")}
                           </span>
-                          <span className="text-accent-gold">Limit: 2 Digits</span>
+                          <span className="text-accent-gold">{t("limit2Digits")}</span>
                         </label>
                         <input 
                           type="number" 
@@ -369,13 +375,13 @@ export default function LawyerRegistration() {
                       <div className="space-y-3 md:col-span-2">
                         <label className="text-[10px] font-black uppercase tracking-widest text-prestige-500 flex items-center justify-between gap-2">
                           <span className="flex items-center gap-2">
-                            <FileText className="w-3 h-3" /> Professional Bio
+                            <FileText className="w-3 h-3" /> {t("professionalBio")}
                           </span>
                           <span className={cn(
                             "font-black tracking-widest",
                             getWordCount(formData.bio) >= 500 ? "text-rose-500" : "text-prestige-400"
                           )}>
-                            {getWordCount(formData.bio)} / 500 Words
+                            {getWordCount(formData.bio)} / 500 {t("wordCount")}
                           </span>
                         </label>
                         <textarea 
@@ -384,7 +390,7 @@ export default function LawyerRegistration() {
                           value={formData.bio}
                           onChange={handleInputChange}
                           rows={4}
-                          placeholder="Brief description of your legal practice and achievements..."
+                          placeholder={t("bioPlaceholder")}
                           className="w-full px-5 py-4 bg-prestige-50 border border-prestige-100 rounded-2xl focus:ring-2 focus:ring-accent-indigo focus:border-transparent outline-none transition-all font-bold text-prestige-950 resize-none"
                         />
                       </div>
@@ -401,14 +407,14 @@ export default function LawyerRegistration() {
                     className="space-y-6"
                   >
                     <div className="space-y-2">
-                       <h3 className="text-xl font-black text-prestige-950 tracking-tight">Certification</h3>
-                       <p className="text-xs text-prestige-400 font-bold uppercase tracking-wider">Proof of license and academic qualifications</p>
+                       <h3 className="text-xl font-black text-prestige-950 tracking-tight">{t("certification")}</h3>
+                       <p className="text-xs text-prestige-400 font-bold uppercase tracking-wider">{t("certificationDesc")}</p>
                     </div>
 
                     <div className="grid md:grid-cols-2 gap-6">
                       <div className="space-y-2">
                         <label className="text-[10px] font-black uppercase tracking-widest text-prestige-500 flex items-center gap-2">
-                          <ShieldCheck className="w-3 h-3" /> Bar License Number
+                          <ShieldCheck className="w-3 h-3" /> {t("licenseNumber")}
                         </label>
                         <div className="relative">
                           <input 
@@ -418,17 +424,23 @@ export default function LawyerRegistration() {
                             value={formData.licenseNumber}
                             onChange={handleInputChange}
                             placeholder="MOJ-XXXX-XXXX"
-                            className="w-full px-5 py-4 bg-prestige-50 border border-prestige-100 rounded-2xl focus:ring-2 focus:ring-accent-indigo focus:border-transparent outline-none transition-all font-bold text-prestige-950 pr-24"
+                            className={cn(
+                              "w-full px-5 py-4 bg-prestige-50 border border-prestige-100 rounded-2xl focus:ring-2 focus:ring-accent-indigo focus:border-transparent outline-none transition-all font-bold text-prestige-950",
+                              isRtl ? "pl-24" : "pr-24"
+                            )}
                           />
-                          <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-1.5 px-2 py-1 bg-amber-50 rounded-lg border border-amber-100">
+                          <div className={cn(
+                            "absolute top-1/2 -translate-y-1/2 flex items-center gap-1.5 px-2 py-1 bg-amber-50 rounded-lg border border-amber-100",
+                            isRtl ? "left-4" : "right-4"
+                          )}>
                              <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-                             <span className="text-[8px] font-black text-amber-600 uppercase tracking-tight">MOJ Verification Pending</span>
+                             <span className="text-[8px] font-black text-amber-600 uppercase tracking-tight">{t("mojPending")}</span>
                           </div>
                         </div>
                       </div>
                       <div className="space-y-2">
                         <label className="text-[10px] font-black uppercase tracking-widest text-prestige-500 flex items-center gap-2">
-                          <GraduationCap className="w-3 h-3" /> Highest Education
+                          <GraduationCap className="w-3 h-3" /> {t("highestEducation")}
                         </label>
                         <input 
                           type="text" 
@@ -442,7 +454,7 @@ export default function LawyerRegistration() {
                       </div>
                       <div className="space-y-2">
                          <label className="text-[10px] font-black uppercase tracking-widest text-prestige-500 flex items-center gap-2">
-                           <LanguagesIcon className="w-3 h-3" /> Languages
+                           <LanguagesIcon className="w-3 h-3" /> {t("languages")}
                          </label>
                          <input 
                            type="text" 
@@ -455,7 +467,7 @@ export default function LawyerRegistration() {
                       </div>
                       <div className="space-y-2">
                          <label className="text-[10px] font-black uppercase tracking-widest text-prestige-500 flex items-center gap-2">
-                           Consultation Fee (AED)
+                           {t("consultationFee")}
                          </label>
                          <input 
                            type="number" 
@@ -467,7 +479,7 @@ export default function LawyerRegistration() {
                            onChange={handleInputChange}
                            className="w-full px-5 py-4 bg-prestige-50 border border-prestige-100 rounded-2xl focus:ring-2 focus:ring-accent-indigo focus:border-transparent outline-none transition-all font-bold text-prestige-950"
                          />
-                         <p className="text-[9px] font-bold text-prestige-400 uppercase tracking-tight">Must be a multiple of 50 AED</p>
+                         <p className="text-[9px] font-bold text-prestige-400 uppercase tracking-tight">{t("feeNote")}</p>
                       </div>
 
                       <div className="md:col-span-2 pt-4">
@@ -476,8 +488,8 @@ export default function LawyerRegistration() {
                              <Upload className="w-6 h-6" />
                            </div>
                            <div>
-                             <p className="text-sm font-black text-prestige-900 leading-none mb-1">Upload Digital License</p>
-                             <p className="text-[10px] font-bold text-prestige-400 uppercase tracking-widest">PDF or High-quality Image (Max 10MB)</p>
+                             <p className="text-sm font-black text-prestige-900 leading-none mb-1">{t("uploadLicense")}</p>
+                             <p className="text-[10px] font-bold text-prestige-400 uppercase tracking-widest">{t("pdfMax10")}</p>
                            </div>
                         </div>
                       </div>
@@ -494,8 +506,8 @@ export default function LawyerRegistration() {
                     className="space-y-8"
                   >
                     <div className="space-y-2">
-                       <h3 className="text-xl font-black text-prestige-950 tracking-tight">Availability & Scheduling</h3>
-                       <p className="text-xs text-prestige-400 font-bold uppercase tracking-wider">Configure your working hours and session preferences</p>
+                       <h3 className="text-xl font-black text-prestige-950 tracking-tight">{t("availability")} & {t("scheduling") || "Scheduling"}</h3>
+                       <p className="text-xs text-prestige-400 font-bold uppercase tracking-wider">{t("availabilityDesc")}</p>
                     </div>
 
                     <div className="grid lg:grid-cols-2 gap-8">
@@ -503,11 +515,11 @@ export default function LawyerRegistration() {
                       <div className="space-y-6">
                         <div className="space-y-4">
                           <label className="text-[10px] font-black uppercase tracking-widest text-prestige-500 flex items-center gap-2">
-                            <Clock className="w-3 h-3" /> Standard Working Hours (Mon-Thu)
+                            <Clock className="w-3 h-3" /> {t("workingHoursWeekday")}
                           </label>
                           <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-1">
-                              <span className="text-[9px] font-bold text-prestige-400 uppercase">Start</span>
+                              <span className="text-[9px] font-bold text-prestige-400 uppercase">{t("start")}</span>
                               <input 
                                 type="time"
                                 value={formData.workingHours.weekday.start}
@@ -516,7 +528,7 @@ export default function LawyerRegistration() {
                               />
                             </div>
                             <div className="space-y-1">
-                              <span className="text-[9px] font-bold text-prestige-400 uppercase">End</span>
+                              <span className="text-[9px] font-bold text-prestige-400 uppercase">{t("end")}</span>
                               <input 
                                 type="time"
                                 value={formData.workingHours.weekday.end}
@@ -530,13 +542,13 @@ export default function LawyerRegistration() {
                         <div className={cn("space-y-4 transition-all duration-300", formData.offDays.includes("Friday") && "opacity-40 grayscale pointer-events-none")}>
                           <label className="text-[10px] font-black uppercase tracking-widest text-prestige-500 flex items-center justify-between gap-2">
                             <span className="flex items-center gap-2">
-                              <Clock className="w-3 h-3 text-accent-gold" /> Friday Special Hours
+                              <Clock className="w-3 h-3 text-accent-gold" /> {t("fridayHours")}
                             </span>
-                            {formData.offDays.includes("Friday") && <span className="text-rose-500 font-black animate-pulse">Friday is an Off Day</span>}
+                            {formData.offDays.includes("Friday") && <span className="text-rose-500 font-black animate-pulse">{t("fridayOffDayNote")}</span>}
                           </label>
                           <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-1">
-                              <span className="text-[9px] font-bold text-prestige-400 uppercase">Start</span>
+                              <span className="text-[9px] font-bold text-prestige-400 uppercase">{t("start")}</span>
                               <input 
                                 type="time"
                                 value={formData.workingHours.friday.start}
@@ -545,7 +557,7 @@ export default function LawyerRegistration() {
                               />
                             </div>
                             <div className="space-y-1">
-                              <span className="text-[9px] font-bold text-prestige-400 uppercase">End</span>
+                              <span className="text-[9px] font-bold text-prestige-400 uppercase">{t("end")}</span>
                               <input 
                                 type="time"
                                 value={formData.workingHours.friday.end}
@@ -561,7 +573,7 @@ export default function LawyerRegistration() {
                       <div className="space-y-6">
                         <div className="space-y-4">
                           <label className="text-[10px] font-black uppercase tracking-widest text-prestige-500 flex items-center gap-2">
-                            <CalendarIcon className="w-3 h-3" /> Off Days
+                            <CalendarIcon className="w-3 h-3" /> {t("offDays")}
                           </label>
                           <div className="flex flex-wrap gap-2">
                             {DAYS_OF_WEEK.map((day) => (
@@ -586,8 +598,8 @@ export default function LawyerRegistration() {
                           <div className="flex items-center gap-3">
                             <Coffee className="w-5 h-5 text-accent-gold" />
                             <div className="space-y-1 text-start">
-                              <p className="text-sm font-black text-prestige-950">Availability Setting</p>
-                              <p className="text-[10px] font-medium text-prestige-400 uppercase tracking-widest leading-tight">You can manage your Out of Office status in your profile settings after registration.</p>
+                              <p className="text-sm font-black text-prestige-950">{t("availabilitySetting")}</p>
+                              <p className="text-[10px] font-medium text-prestige-400 uppercase tracking-widest leading-tight">{t("availabilitySettingDesc")}</p>
                             </div>
                           </div>
                         </div>
@@ -608,7 +620,7 @@ export default function LawyerRegistration() {
                     step === 1 ? "opacity-0 invisible" : "text-prestige-400 hover:text-prestige-950"
                   )}
                 >
-                  <ArrowLeft className="w-4 h-4" /> Back
+                  <ArrowLeft className="w-4 h-4" /> {t("back")}
                 </button>
 
                 <button 
@@ -620,8 +632,8 @@ export default function LawyerRegistration() {
                     <Loader2 className="w-5 h-5 animate-spin" />
                   ) : (
                     <>
-                      {step === 4 ? "Submit Application" : "Continue"} 
-                      {step < 4 && <ArrowRight className="w-5 h-5" />}
+                      {step === 4 ? t("submitApplication") : t("continue")} 
+                      {step < 4 && <ArrowRight className={cn("w-5 h-5", isRtl && "rotate-180")} />}
                     </>
                   )}
                 </button>
@@ -629,7 +641,7 @@ export default function LawyerRegistration() {
 
               <div className="text-center pt-6">
                 <p className="text-[10px] font-bold text-prestige-300 uppercase tracking-widest max-w-xs mx-auto">
-                  By submitting, you agree to our <span className="text-accent-indigo">Provider Terms</span> and represent all data as truthful.
+                  {t("providerTermsNote")}
                 </p>
               </div>
             </form>

@@ -1,91 +1,42 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Scale, MessageSquare, Users, Calendar, LogIn, LogOut, Search, Globe, Paperclip, CheckCircle2, FlaskConical, Loader2, Zap, ShieldCheck } from "lucide-react";
+import { Scale, MessageSquare, Users, Calendar, LogIn, LogOut, Search, Globe, Paperclip, CheckCircle2, FlaskConical, Loader2, Zap, ShieldCheck, LifeBuoy } from "lucide-react";
 import { auth, signInWithGoogle, logout, db } from "../lib/firebase";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { doc, setDoc, deleteDoc, getDoc } from "firebase/firestore";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "../lib/utils";
 import { useLanguage } from "../contexts/LanguageContext";
-import { getLawyerByUserId, Lawyer } from "../services/lawyerService";
+import { useUser } from "../contexts/UserContext";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  const [user, loading] = useAuthState(auth);
-  const [lawyerProfile, setLawyerProfile] = React.useState<Lawyer | null>(null);
-  const [isAuthorized, setIsAuthorized] = React.useState(false);
+  const { user, loading, lawyerProfile, isSuperAdmin, toggleLawyerRole } = useUser();
   const location = useLocation();
   const { language, setLanguage, t, isRtl } = useLanguage();
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
   const [isAuthActionLoading, setIsAuthActionLoading] = React.useState(false);
-  const [isDevLoading, setIsDevLoading] = React.useState(false);
+  const [isToggleLoading, setIsToggleLoading] = React.useState(false);
   const isFixedPage = location.pathname === "/assistant" || location.pathname === "/history";
 
-  const isSuperAdmin = user?.email === "universe.24.369@gmail.com";
-
-  const toggleLawyerRole = async () => {
-    if (!user || !isSuperAdmin) return;
-    setIsDevLoading(true);
-    try {
-      if (lawyerProfile) {
-        setLawyerProfile(null);
-      } else {
-        const profile = await getLawyerByUserId(user.uid);
-        if (profile) {
-          setLawyerProfile(profile);
-        } else {
-          // Mock simple profile for switching
-          setLawyerProfile({ id: user.uid, name: user.displayName || "Lawyer" } as any);
-        }
-      }
-    } catch (err) {
-      console.error("Error toggling role:", err);
-    } finally {
-      setIsDevLoading(false);
-    }
+  const handleToggleRole = async () => {
+    setIsToggleLoading(true);
+    await toggleLawyerRole();
+    setIsToggleLoading(false);
   };
-
-  React.useEffect(() => {
-    async function checkLawyer() {
-      if (user) {
-        // Check if explicitly authorized by admin
-        const authRef = doc(db, "authorized_lawyers", user.email?.toLowerCase().trim() || "");
-        const authSnap = await getDoc(authRef);
-        const authorized = authSnap.exists();
-        setIsAuthorized(authorized);
-
-        const profile = await getLawyerByUserId(user.uid);
-        
-        // Rules for display:
-        // 1. If super admin, keep whatever current state toggle is
-        // 2. If authorized or has profile, start as lawyer
-        if (!isSuperAdmin) {
-          if (authorized || profile) {
-            setLawyerProfile(profile || { id: user.uid, name: user.displayName || "Lawyer" } as any);
-          } else {
-            setLawyerProfile(null);
-          }
-        } else if (!lawyerProfile && (authorized || profile)) {
-           // Initial load for super admin if they have a profile
-           setLawyerProfile(profile || { id: user.uid, name: user.displayName || "Lawyer" } as any);
-        }
-      } else {
-        setLawyerProfile(null);
-        setIsAuthorized(false);
-      }
-    }
-    checkLawyer();
-  }, [user]);
 
   const navItems = [
     { name: t("home"), path: "/", icon: MessageSquare },
-    { name: "Chat", path: "/assistant", icon: MessageSquare },
-    ...(lawyerProfile ? [{ name: "AI Strategic Associate", path: "/lawyer/assistant", icon: Zap, isSpecial: true }] : []),
-    { name: "Legislation", path: "/laws", icon: Search },
-    { name: "My History", path: "/history", icon: Scale },
+    { name: t("assistant"), path: "/assistant", icon: Zap },
     { name: t("findLawyer"), path: "/lawyers", icon: Users },
     { name: t("myBookings"), path: "/appointments", icon: Calendar },
-    ...(isSuperAdmin ? [{ name: "Admin", path: "/management", icon: ShieldCheck }] : []),
+  ];
+
+  const secondaryNavItems = [
+    { name: t("legislation"), path: "/laws", icon: Search },
+    { name: t("history"), path: "/history", icon: Scale },
+    ...(lawyerProfile ? [{ name: t("aiStrategicAssociate"), path: "/lawyer/assistant", icon: Zap }] : []),
+    ...(isSuperAdmin ? [{ name: t("admin"), path: "/management", icon: ShieldCheck }] : []),
   ];
 
   const handleLogin = async () => {
@@ -111,13 +62,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <Scale className="w-6 h-6 text-white" />
             </div>
             <div className="flex flex-col">
-              <span className="text-sm sm:text-base font-extrabold tracking-tight text-prestige-950 leading-tight">JusticeFlow</span>
-              <div className="flex items-center gap-1.5">
-                <div className="w-1.5 h-1.5 bg-accent-indigo rounded-full animate-pulse" />
-                <span className="text-[9px] font-black text-accent-indigo uppercase tracking-widest">UAE</span>
-                {location.pathname === "/assistant" && (
-                   <span className="hidden sm:inline text-[9px] font-black text-accent-gold uppercase tracking-widest bg-accent-gold/10 px-1 rounded-sm">Live</span>
-                )}
+              <span className="text-sm sm:text-base font-extrabold tracking-tight text-prestige-950 leading-tight">Huqiqiyy</span>
+              <div className="flex items-center gap-2">
+                <span className="text-[8px] font-black text-accent-gold uppercase tracking-widest leading-none">Co-pilot</span>
+                <div className="flex items-center gap-1">
+                  <div className="w-1 h-1 bg-accent-indigo rounded-full animate-pulse" />
+                  <span className="text-[8px] font-black text-accent-indigo uppercase tracking-widest">UAE</span>
+                </div>
               </div>
             </div>
           </Link>
@@ -131,13 +82,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   to={item.path}
                   className={cn(
                     "flex items-center h-full text-sm font-bold transition-all relative group uppercase tracking-widest text-[11px]",
-                    (item as any).isSpecial 
-                      ? (isActive ? "text-accent-gold" : "text-accent-gold/60 hover:text-accent-gold")
-                      : (isActive ? "text-accent-indigo" : "text-prestige-500 hover:text-prestige-900")
+                    isActive ? "text-accent-indigo" : "text-prestige-500 hover:text-prestige-900"
                   )}
                 >
                   <div className="flex items-center gap-2">
-                    {(item as any).isSpecial && <Zap className="w-3 h-3 fill-current" />}
                     {item.name}
                   </div>
                   {isActive && (
@@ -179,8 +127,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <div className="flex items-center gap-4 pl-4 border-l border-prestige-200">
                 {isSuperAdmin && (
                   <button
-                    onClick={toggleLawyerRole}
-                    disabled={isDevLoading}
+                    onClick={handleToggleRole}
+                    disabled={isToggleLoading}
                     title="Toggle Lawyer/Client Role"
                     className={cn(
                       "flex items-center gap-2 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all",
@@ -189,19 +137,19 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                         : "bg-emerald-50 text-emerald-600 border border-emerald-100 hover:bg-emerald-100"
                     )}
                   >
-                    {isDevLoading ? (
+                    {isToggleLoading ? (
                       <Loader2 className="w-3 h-3 animate-spin" />
                     ) : (
                       <FlaskConical className="w-3 h-3" />
                     )}
-                    {lawyerProfile ? "Become Client" : "Become Lawyer"}
+                    {lawyerProfile ? t("becomeClient") : t("becomeLawyer")}
                   </button>
                 )}
                 <div className="hidden sm:block text-end">
                   <div className="flex items-center gap-2 justify-end mb-0.5">
                     {lawyerProfile && (
                       <Link to="/lawyer/dashboard" className="text-[9px] font-black bg-accent-gold/10 text-accent-gold px-2 py-0.5 rounded border border-accent-gold/20 hover:bg-accent-gold hover:text-prestige-950 transition-colors uppercase tracking-widest leading-none">
-                        Management
+                        {t("management")}
                       </Link>
                     )}
                     <p className="text-xs font-bold text-prestige-900">{user.displayName}</p>
@@ -258,7 +206,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             >
               <div className="container mx-auto px-6 py-8 space-y-6">
                 <div className="grid grid-cols-1 gap-4">
-                  {navItems.map((item) => {
+                  {[...navItems, ...secondaryNavItems].map((item) => {
                     const isActive = location.pathname === item.path;
                     return (
                       <Link
@@ -269,12 +217,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                           "flex items-center gap-4 p-4 rounded-2xl transition-all font-black uppercase tracking-widest text-xs",
                           isActive 
                             ? "bg-accent-indigo text-white shadow-lg shadow-accent-indigo/20" 
-                            : ((item as any).isSpecial ? "bg-accent-gold/10 text-accent-gold border border-accent-gold/20" : "bg-prestige-50 text-prestige-950 hover:bg-prestige-100")
+                            : "bg-prestige-50 text-prestige-950 hover:bg-prestige-100"
                         )}
                       >
-                        <item.icon className={cn("w-5 h-5", isActive ? "text-white" : ((item as any).isSpecial ? "text-accent-gold" : "text-accent-indigo"))} />
+                        <item.icon className={cn("w-5 h-5", isActive ? "text-white" : "text-accent-indigo")} />
                         {item.name}
-                        {(item as any).isSpecial && <Zap className="w-4 h-4 ml-auto fill-current" />}
                       </Link>
                     );
                   })}
@@ -288,9 +235,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                         <div className="flex-1 text-start">
                           <div className="flex items-center gap-2">
                             <p className="text-sm font-bold text-prestige-900">{user.displayName}</p>
-                            {lawyerProfile && (
+                    {lawyerProfile && (
                               <Link to="/lawyer/dashboard" onClick={() => setIsMobileMenuOpen(false)} className="text-[8px] font-black bg-accent-gold/10 text-accent-gold px-1.5 py-0.5 rounded border border-accent-gold/20 uppercase">
-                                Management
+                                {t("management")}
                               </Link>
                             )}
                           </div>
@@ -301,8 +248,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                       </div>
                       {isSuperAdmin && (
                         <button
-                          onClick={toggleLawyerRole}
-                          disabled={isDevLoading}
+                          onClick={handleToggleRole}
+                          disabled={isToggleLoading}
                           className={cn(
                             "flex items-center justify-center gap-2 w-full p-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border",
                             lawyerProfile 
@@ -310,12 +257,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                               : "bg-emerald-50 text-emerald-600 border-emerald-100"
                           )}
                         >
-                          {isDevLoading ? (
+                          {isToggleLoading ? (
                             <Loader2 className="w-4 h-4 animate-spin" />
                           ) : (
                             <FlaskConical className="w-4 h-4" />
                           )}
-                          {lawyerProfile ? "Become Client Role" : "Become Lawyer Role"}
+                          {lawyerProfile ? t("becomeClient") : t("becomeLawyer")}
                         </button>
                       )}
                     </div>
@@ -338,7 +285,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </AnimatePresence>
       </header>
 
-
       <main className={cn("flex-1 flex flex-col min-h-0 relative", !isFixedPage && "overflow-y-auto")}>
         <motion.div
           key={location.pathname}
@@ -349,6 +295,26 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         >
           {children}
         </motion.div>
+
+        {/* Floating Support Button */}
+        {user && location.pathname !== "/support" && (
+          <Link 
+            to="/support"
+            className={cn(
+              "fixed bottom-8 w-14 h-14 rounded-2xl shadow-2xl flex items-center justify-center text-white transition-all hover:scale-110 active:scale-95 group z-[100]",
+              isRtl ? "left-8" : "right-8",
+              lawyerProfile ? "bg-accent-indigo shadow-accent-indigo/30" : "bg-prestige-950 shadow-prestige-900/30"
+            )}
+          >
+            <LifeBuoy className="w-7 h-7" />
+            <div className={cn(
+              "absolute py-1.5 px-3 bg-white text-prestige-950 text-[10px] font-black uppercase tracking-widest rounded-lg border border-prestige-100 shadow-xl opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none",
+              isRtl ? "left-full ml-3" : "right-full mr-3"
+            )}>
+              {t("support")}
+            </div>
+          </Link>
+        )}
       </main>
       
       {location.pathname !== "/assistant" && (
@@ -359,23 +325,23 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                <span className="text-prestige-100">{t("appName")}</span>
             </Link>
             <div className="flex gap-6 md:gap-8">
-              <a href="#" className="text-prestige-400 hover:text-white transition-colors">Privacy</a>
-              <a href="#" className="text-prestige-400 hover:text-white transition-colors">Terms</a>
-              <a href="#" className="text-prestige-400 hover:text-white transition-colors">Support</a>
+              <span className="text-prestige-400 hover:text-white transition-colors cursor-pointer">{t("privacy")}</span>
+              <span className="text-prestige-400 hover:text-white transition-colors cursor-pointer">{t("terms")}</span>
+              <Link to="/support" className="text-prestige-400 hover:text-white transition-colors">{t("support")}</Link>
               {lawyerProfile ? (
                 <button 
                   onClick={() => {
                     const url = window.location.origin;
-                    navigator.clipboard.writeText(`Join me on JusticeFlow: ${url}`);
-                    alert("Referral link copied to clipboard!");
+                    navigator.clipboard.writeText(`Join me on Huqiqiyy: ${url}`);
+                    alert(t("referralCopied"));
                   }}
                   className="text-accent-gold hover:text-white transition-colors flex items-center gap-2"
                 >
                   <Users className="w-3 h-3" />
-                  Referral
+                  {t("referral")}
                 </button>
               ) : (
-                <Link to="/register-lawyer" className="text-accent-gold hover:text-white transition-colors">Join as Lawyer</Link>
+                <Link to="/register-lawyer" className="text-accent-gold hover:text-white transition-colors">{t("joinAsLawyer")}</Link>
               )}
             </div>
           </div>

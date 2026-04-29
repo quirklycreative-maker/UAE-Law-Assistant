@@ -1,6 +1,8 @@
 {
-  "name": "JusticeFlow UAE Legal AI",
-  "description": "A comprehensive platform for navigating UAE legislation with AI-powered legal advisors and certified lawyer consultations.",
-  "requestFramePermissions": ["camera", "microphone", "geolocation"],
-  "majorCapabilities": []
+  "name": "Huqiqiyy UAE Legal AI",
+  "description": "Premium AI-powered legal research and consultation platform for UAE legislation. Secure access to federal laws, expert lawyers, and automated legal analysis.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
 }

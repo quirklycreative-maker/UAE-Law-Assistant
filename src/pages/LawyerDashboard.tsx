@@ -13,8 +13,10 @@ import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { cn } from "../lib/utils";
 import { Lawyer, WorkingHours } from "../services/lawyerService";
+import { useLanguage } from "../contexts/LanguageContext";
 
 export default function LawyerDashboard() {
+  const { t, isRtl } = useLanguage();
   const [user] = useAuthState(auth);
   const [lawyer, setLawyer] = useState<Lawyer | null>(null);
   const [loading, setLoading] = useState(true);
@@ -29,20 +31,12 @@ export default function LawyerDashboard() {
     async function fetchLawyerProfile() {
       if (!user) return;
       try {
-        // In a real app, we'd find the lawyer doc by userId
-        // For this demo, we'll try to find a doc in 'lawyers' collection where userId match
-        // Or if it doesn't exist, we might be looking at mock data (which we can't edit in DB)
-        
-        // For simplicity in this environment, we'll check if the user has a lawyer profile
-        // linked to their UID.
         const lawyerRef = doc(db, "lawyers", user.uid);
         const snap = await getDoc(lawyerRef);
         
         if (snap.exists()) {
           setLawyer({ id: snap.id, ...snap.data() } as Lawyer);
         } else {
-          // If no profile yet, maybe they just registered?
-          // We'll show a message or a default "empty" state if they aren't a lawyer yet
           setLawyer(null);
         }
       } catch (err) {
@@ -133,14 +127,14 @@ export default function LawyerDashboard() {
           <AlertCircle className="w-10 h-10 text-prestige-400" />
         </div>
         <div className="space-y-2">
-          <h2 className="text-3xl font-black text-prestige-950 tracking-tight">No Lawyer Profile Found</h2>
-          <p className="text-prestige-500 font-medium">You need to complete your lawyer registration first.</p>
+          <h2 className="text-3xl font-black text-prestige-950 tracking-tight">{t("noProfileFound")}</h2>
+          <p className="text-prestige-500 font-medium">{t("noProfileFoundDesc")}</p>
         </div>
         <button 
           onClick={() => window.location.href = "/register-lawyer"}
           className="px-8 py-4 bg-accent-indigo text-white rounded-2xl font-black shadow-xl shadow-accent-indigo/20 hover:scale-105 transition-transform"
         >
-          Register as Lawyer
+          {t("registerAsLawyer")}
         </button>
       </div>
     );
@@ -150,11 +144,11 @@ export default function LawyerDashboard() {
     <div className="container mx-auto px-6 py-24 max-w-4xl space-y-12">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div className="space-y-2 text-start">
-          <span className="text-[10px] font-black text-accent-gold uppercase tracking-[0.3em]">Management Portal</span>
+          <span className="text-[10px] font-black text-accent-gold uppercase tracking-[0.3em]">{t("managementPortal")}</span>
           <h1 className="text-4xl md:text-5xl font-black text-prestige-950 tracking-tighter leading-none">
-            Availability <span className="text-accent-gold italic serif font-normal">Settings</span>
+            {t("availabilitySettings").split("Settings")[0]} <span className="text-accent-gold italic serif font-normal">{t("scheduling") || "Settings"}</span>
           </h1>
-          <p className="text-prestige-500 font-medium">Manage your calendar, working hours, and visibility.</p>
+          <p className="text-prestige-500 font-medium">{t("availabilitySettingsDesc")}</p>
         </div>
         
         <button 
@@ -172,12 +166,12 @@ export default function LawyerDashboard() {
           ) : saveStatus === 'success' ? (
             <>
               <CheckCircle2 className="w-5 h-5" />
-              Saved Successfully
+              {t("savedSuccessfully")}
             </>
           ) : (
             <>
               <Save className="w-5 h-5" />
-              Save Changes
+              {t("saveChanges")}
             </>
           )}
         </button>
@@ -189,8 +183,8 @@ export default function LawyerDashboard() {
            <div className="p-8 bg-white border border-prestige-100 rounded-[2.5rem] shadow-xl shadow-prestige-900/5 space-y-6">
               <div className="flex items-center justify-between">
                 <div className="space-y-1 text-start">
-                  <h3 className="text-xl font-black text-prestige-950 tracking-tight">Visibility Status</h3>
-                  <p className="text-xs font-bold text-prestige-400 uppercase tracking-widest leading-tight">Out of Office (OOO) Toggle</p>
+                  <h3 className="text-xl font-black text-prestige-950 tracking-tight">{t("visibilityStatus")}</h3>
+                  <p className="text-xs font-bold text-prestige-400 uppercase tracking-widest leading-tight">{t("oooToggle")}</p>
                 </div>
                 <button
                   type="button"
@@ -218,12 +212,12 @@ export default function LawyerDashboard() {
                 </div>
                 <div className="space-y-1">
                   <p className="text-[11px] font-black uppercase tracking-widest">
-                    {lawyer.isOOO ? "Currently Unavailable" : "Currently Available"}
+                    {lawyer.isOOO ? t("currentlyUnavailable") : t("currentlyAvailable")}
                   </p>
-                  <p className="text-xs font-medium leading-relaxed">
+                  <p className="text-xs font-medium leading-relaxed text-start">
                     {lawyer.isOOO 
-                      ? "Your profile is hidden from clients. You won't receive new consultation requests." 
-                      : "Your profile is visible in the directory and clients can book consultations."}
+                      ? t("oooHidden") 
+                      : t("oooVisible")}
                   </p>
                 </div>
               </div>
@@ -231,8 +225,8 @@ export default function LawyerDashboard() {
 
            <div className="p-8 bg-white border border-prestige-100 rounded-[2.5rem] shadow-xl shadow-prestige-900/5 space-y-6 text-start">
               <div className="space-y-1">
-                <h3 className="text-xl font-black text-prestige-950 tracking-tight">Scheduled Days Off</h3>
-                <p className="text-xs font-bold text-prestige-400 uppercase tracking-widest leading-tight">Select your weekly holidays</p>
+                <h3 className="text-xl font-black text-prestige-950 tracking-tight">{t("scheduledDaysOff")}</h3>
+                <p className="text-xs font-bold text-prestige-400 uppercase tracking-widest leading-tight">{t("selectHolidays")}</p>
               </div>
               
               <div className="flex flex-wrap gap-2">
@@ -258,19 +252,19 @@ export default function LawyerDashboard() {
         {/* Working Hours Controls */}
         <div className="p-8 bg-white border border-prestige-100 rounded-[2.5rem] shadow-xl shadow-prestige-900/5 space-y-8 text-start">
           <div className="space-y-1">
-            <h3 className="text-xl font-black text-prestige-950 tracking-tight">Standard Hours</h3>
-            <p className="text-xs font-bold text-prestige-400 uppercase tracking-widest leading-tight">Session timing configuration</p>
+            <h3 className="text-xl font-black text-prestige-950 tracking-tight">{t("standardWorkingHours")}</h3>
+            <p className="text-xs font-bold text-prestige-400 uppercase tracking-widest leading-tight">{t("sessionTimingDesc")}</p>
           </div>
 
           <div className="space-y-6">
             <div className="space-y-4">
               <div className="flex items-center gap-2 text-xs font-black text-prestige-900 uppercase tracking-widest">
                 <Clock className="w-4 h-4 text-accent-indigo" />
-                Weekday Hours (Mon - Thu)
+                {t("weekdayHoursLabel")}
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <span className="text-[10px] font-black text-prestige-400 uppercase">Start</span>
+                  <span className="text-[10px] font-black text-prestige-400 uppercase">{t("start")}</span>
                   <input 
                     type="time"
                     value={lawyer.workingHours?.weekday.start || "09:00"}
@@ -279,7 +273,7 @@ export default function LawyerDashboard() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <span className="text-[10px] font-black text-prestige-400 uppercase">End</span>
+                  <span className="text-[10px] font-black text-prestige-400 uppercase">{t("end")}</span>
                   <input 
                     type="time"
                     value={lawyer.workingHours?.weekday.end || "18:00"}
@@ -296,15 +290,15 @@ export default function LawyerDashboard() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-xs font-black text-prestige-900 uppercase tracking-widest text-accent-gold">
                   <Clock className="w-4 h-4" />
-                  Friday Special Hours
+                  {t("fridayHours")}
                 </div>
                 {(lawyer.offDays || []).includes("Friday") && (
-                  <span className="text-[10px] font-black text-rose-500 uppercase tracking-widest animate-pulse">Off Day</span>
+                  <span className="text-[10px] font-black text-rose-500 uppercase tracking-widest animate-pulse">{t("offDay")}</span>
                 )}
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <span className="text-[10px] font-black text-prestige-400 uppercase">Start</span>
+                  <span className="text-[10px] font-black text-prestige-400 uppercase">{t("start")}</span>
                   <input 
                     type="time"
                     value={lawyer.workingHours?.friday.start || "08:00"}
@@ -313,7 +307,7 @@ export default function LawyerDashboard() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <span className="text-[10px] font-black text-prestige-400 uppercase">End</span>
+                  <span className="text-[10px] font-black text-prestige-400 uppercase">{t("end")}</span>
                   <input 
                     type="time"
                     value={lawyer.workingHours?.friday.end || "12:00"}
@@ -325,15 +319,15 @@ export default function LawyerDashboard() {
             </div>
           </div>
 
-          <div className="p-6 bg-accent-gold/5 rounded-[2rem] border border-accent-gold/10">
+          <div className="p-6 bg-accent-gold/5 rounded-[2rem] border border-accent-gold/10 text-start">
             <div className="flex gap-4">
               <div className="p-3 bg-accent-gold/10 rounded-xl flex-shrink-0 h-fit">
                 <CalendarIcon className="w-5 h-5 text-accent-gold" />
               </div>
               <div className="space-y-2">
-                <p className="text-sm font-black text-prestige-950 tracking-tight">Smart Slot Generation</p>
+                <p className="text-sm font-black text-prestige-950 tracking-tight">{t("smartSlotGeneration")}</p>
                 <p className="text-xs font-medium text-prestige-500 leading-relaxed italic">
-                  "Personal visits" are automatically generated as 1-hour slots. "Video consultations" are generated as 30-minute slots.
+                  {t("slotGenerationDesc")}
                 </p>
               </div>
             </div>
