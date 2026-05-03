@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { MessageSquare, Send, Bot, User, Loader2, ShieldAlert, CheckCircle2, LifeBuoy } from "lucide-react";
-import { auth, db } from "../lib/firebase";
+import { auth, db, handleFirestoreError, OperationType } from "../lib/firebase";
 import { collection, addDoc, query, where, orderBy, onSnapshot, updateDoc, doc, serverTimestamp } from "firebase/firestore";
 import { ai, MODELS } from "../lib/gemini";
 import { logUsage } from "../lib/usage";
@@ -83,8 +83,9 @@ export default function Support() {
       timestamp: new Date().toISOString()
     };
     
+    const path = "support_sessions";
     try {
-      const docRef = await addDoc(collection(db, "support_sessions"), {
+      const docRef = await addDoc(collection(db, path), {
         userId: user.uid,
         userEmail: user.email,
         userRole: currentRole,
@@ -95,7 +96,7 @@ export default function Support() {
       });
       setSessionId(docRef.id);
     } catch (err) {
-      console.error("Error creating support session:", err);
+      handleFirestoreError(err, OperationType.CREATE, path);
     }
   };
 
@@ -114,9 +115,10 @@ export default function Support() {
     setInput("");
     setIsTyping(true);
 
+    const path = "support_sessions";
     try {
       // Sync user message to DB
-      await updateDoc(doc(db, "support_sessions", sessionId), {
+      await updateDoc(doc(db, path, sessionId), {
         messages: newMessages,
         updatedAt: serverTimestamp()
       });
@@ -153,7 +155,7 @@ export default function Support() {
       const finalMessages = [...newMessages, aiMessage];
       
       // Sync AI message to DB
-      await updateDoc(doc(db, "support_sessions", sessionId), {
+      await updateDoc(doc(db, path, sessionId), {
         messages: finalMessages,
         updatedAt: serverTimestamp()
       });
@@ -161,6 +163,10 @@ export default function Support() {
     } catch (err) {
       console.error("Support AI Error:", err);
       logUsage('support_query', 'error');
+      // If it's a Firestore error, handle it
+      if (err instanceof Error && err.message.includes("permission")) {
+        handleFirestoreError(err, OperationType.UPDATE, path);
+      }
     } finally {
       setIsTyping(false);
     }
@@ -169,12 +175,17 @@ export default function Support() {
   const resolveTicket = async () => {
     if (!sessionId) return;
     if (window.confirm(t("confirmResolve") || "Mark this support session as resolved?")) {
-      await updateDoc(doc(db, "support_sessions", sessionId), {
-        status: "resolved",
-        updatedAt: serverTimestamp()
-      });
-      setMessages([]);
-      setSessionId(null);
+      const path = "support_sessions";
+      try {
+        await updateDoc(doc(db, path, sessionId), {
+          status: "resolved",
+          updatedAt: serverTimestamp()
+        });
+        setMessages([]);
+        setSessionId(null);
+      } catch (err) {
+        handleFirestoreError(err, OperationType.UPDATE, path);
+      }
     }
   };
 

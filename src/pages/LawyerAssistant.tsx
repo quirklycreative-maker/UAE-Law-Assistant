@@ -44,6 +44,25 @@ export default function LawyerAssistant() {
   const [precedentSearchQuery, setPrecedentSearchQuery] = useState("");
   const [precedents, setPrecedents] = useState<Precedent[]>([]);
   const [isSearchingPrecedents, setIsSearchingPrecedents] = useState(false);
+  const [suggestedPrompts, setSuggestedPrompts] = useState<string[]>([]);
+
+  useEffect(() => {
+    const ALL_PROMPTS = [
+      "Draft a notice of dispute for a commercial contract under UAE law.",
+      "Analyze ADGM vs DIFC jurisdiction for holding companies.",
+      "List the recent changes to the UAE Labor Law on non-compete clauses.",
+      "What is the statute of limitations for civil liability claims in UAE?",
+      "Compare the process of setting up an LLC in Dubai Mainland vs Freezones.",
+      "Outline a defense strategy for a breach of contract claim invoking force majeure.",
+      "What are the penalties for bouncing a cheque under the new Commercial Transactions Law?",
+      "Summarize the recent amendments to the UAE Family Business Law.",
+      "Explain the VAT implications of exporting services from a UAE free zone.",
+      "Draft a standard NDA governed by UAE law."
+    ];
+    // Shuffle and pick 4
+    const shuffled = [...ALL_PROMPTS].sort(() => 0.5 - Math.random());
+    setSuggestedPrompts(shuffled.slice(0, 4));
+  }, []);
 
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -66,6 +85,20 @@ export default function LawyerAssistant() {
 
   const handleSend = async (text: string = input) => {
     if (!text.trim() || isLoading || isSending.current) return;
+    
+    // Safety check - block harmful or off-topic queries
+    const harmfulPatterns = [/kill/i, /murder/i, /suicide/i, /assassinate/i, /how to commit a crime/i];
+    const offTopicPatterns = [/recipe/i, /weather/i, /movie/i, /music/i];
+
+    if (harmfulPatterns.some(pattern => pattern.test(text)) || offTopicPatterns.some(pattern => pattern.test(text))) {
+      const now = Date.now();
+      const message = harmfulPatterns.some(pattern => pattern.test(text))
+        ? "I cannot assist with this request."
+        : "This inquiry appears to be outside the scope of this legal assistance platform. I am designed to help with legal research and analysis. Please feel free to ask a question related to UAE law or legal documentation.";
+      
+      setMessages(prev => [...prev, { role: 'user', text: text, timestamp: now }, { role: 'model', text: message, timestamp: now + 1 }]);
+      return;
+    }
     
     isSending.current = true;
     setInput("");
@@ -434,6 +467,20 @@ export default function LawyerAssistant() {
               <Send className="w-5 h-5" />
             </button>
           </form>
+          
+          <div className="flex justify-center gap-2 mt-4 px-4 overflow-x-auto pb-2 scrollbar-hide whitespace-nowrap">
+            {suggestedPrompts.map(prompt => (
+              <button
+                key={prompt}
+                onClick={() => setInput(prompt)}
+                className="px-4 py-2 bg-white/50 border border-prestige-200 hover:bg-white hover:border-accent-gold hover:text-accent-gold text-prestige-500 text-[10px] font-bold rounded-xl transition-all shadow-sm flex items-center gap-2"
+              >
+                <Zap className="w-3 h-3 text-accent-gold/70" />
+                {prompt}
+              </button>
+            ))}
+          </div>
+
           <p className="mt-4 text-center text-[10px] font-bold text-prestige-400 uppercase tracking-widest">
             AI can make mistakes. Verify technical citations against official ministerial decrees.
           </p>

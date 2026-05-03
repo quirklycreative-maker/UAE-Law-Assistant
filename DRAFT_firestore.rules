@@ -110,13 +110,10 @@ service cloud.firestore {
       );
       allow create: if isEmailVerified() && isValidConsultation(incoming());
       allow update: if isSignedIn() && (
-        // Admin can update anything
         isAdmin() ||
-        // User/Lawyer can only update status or specific fields
         (
           (resource.data.clientId == request.auth.uid || resource.data.lawyerId == request.auth.uid) &&
-          incoming().diff(existing()).affectedKeys().hasOnly(['status', 'meetingLink', 'meetingType']) &&
-          existing().status != 'completed' && existing().status != 'cancelled'
+          incoming().diff(existing()).affectedKeys().hasOnly(['status', 'meetingLink', 'meetingType', 'scheduledAt'])
         )
       );
     }

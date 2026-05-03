@@ -1,5 +1,33 @@
 {
   "entities": {
+    "Client": {
+      "title": "Client",
+      "description": "Represents a client of a lawyer.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "lawyerId": { "type": "string" }
+      },
+      "required": ["id", "name", "lawyerId"]
+    },
+    "Case": {
+      "title": "Case",
+      "description": "Represents a case for a client.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "clientId": { "type": "string" },
+        "lawyerId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["active", "closed"] }
+      },
+      "required": ["id", "title", "clientId", "lawyerId", "createdAt", "status"]
+    },
     "User": {
       "title": "User",
       "description": "Represents a user of the platform (Client or Lawyer).",
@@ -109,9 +137,24 @@
         },
         "updatedAt": { "type": "string", "format": "date-time" },
         "createdAt": { "type": "string", "format": "date-time" },
-        "isTechnical": { "type": "boolean" }
+        "isTechnical": { "type": "boolean" },
+        "caseId": { "type": "string" }
       },
       "required": ["userId", "messages", "updatedAt"]
+    },
+    "LawyerProfile": {
+      "title": "Lawyer Profile",
+      "description": "Public profile for lawyers on the platform.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "specialization": { "type": "string" },
+        "bio": { "type": "string" },
+        "price": { "type": "string" }
+      },
+      "required": ["id", "name", "email"]
     },
     "Precedent": {
       "title": "Precedent",
@@ -130,6 +173,14 @@
     }
   },
   "firestore": {
+    "clients/{clientId}": {
+      "schema": "Client",
+      "description": "Clients of the lawyer."
+    },
+    "cases/{caseId}": {
+      "schema": "Case",
+      "description": "Cases for clients."
+    },
     "users/{userId}": {
       "schema": "User",
       "description": "User profiles for clients and lawyers."
@@ -141,6 +192,10 @@
     "ai_conversations/{conversationId}": {
       "schema": "AIConversation",
       "description": "History of AI legal discussions."
+    },
+    "lawyers/{lawyerId}": {
+      "schema": "LawyerProfile",
+      "description": "Public profile for lawyers on the platform."
     },
     "legislation/{lawId}": {
       "schema": "Legislation",
@@ -201,7 +256,7 @@
       "schema": {
         "type": "object",
         "properties": {
-          "type": { "type": "string", "enum": ["gemini_query", "legal_search", "document_generation"] },
+          "type": { "type": "string", "enum": ["gemini_query", "legal_search", "document_generation", "support_query"] },
           "userId": { "type": "string" },
           "tokens": { "type": "number" },
           "timestamp": { "type": "string", "format": "date-time" },

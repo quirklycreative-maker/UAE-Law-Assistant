@@ -1,19 +1,22 @@
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { db, auth } from './firebase';
+import { db, auth, handleFirestoreError, OperationType } from './firebase';
 
 export type UsageType = 'gemini_query' | 'legal_search' | 'document_generation' | 'support_query';
 
 export async function logUsage(type: UsageType, status: 'success' | 'error' = 'success', tokens?: number) {
+  const path = 'usage_stats';
   try {
     const user = auth.currentUser;
-    await addDoc(collection(db, 'usage_stats'), {
+    if (!user) return; // Rules require signed in
+
+    await addDoc(collection(db, path), {
       type,
       status,
       tokens: tokens || 0,
-      userId: user?.uid || 'anonymous',
+      userId: user.uid,
       timestamp: serverTimestamp(),
     });
   } catch (error) {
-    console.error('Failed to log usage:', error);
+    handleFirestoreError(error, OperationType.CREATE, path);
   }
 }

@@ -67,7 +67,8 @@ export async function getLawyerCoPilotAdvice(
       return response.text || "I'm sorry, I couldn't generate a technical response.";
     } catch (proError: any) {
       // If Pro is unavailable (503), fallback to Flash
-      if (proError?.error?.code === 503 || proError?.status === 503 || JSON.stringify(proError).includes("503")) {
+      const errorStr = JSON.stringify(proError);
+      if (proError?.status === 503 || errorStr.includes("503") || errorStr.includes("UNAVAILABLE")) {
         console.warn("Gemini Pro unavailable, falling back to Flash");
         const fallbackResponse = await ai.models.generateContent({
           model: MODELS.flash,
@@ -133,12 +134,18 @@ export async function getLegalAdvice(
     logUsage('gemini_query', 'success', 0);
 
     return response.text || "I'm sorry, I couldn't generate a response at this time.";
-  } catch (error) {
+  } catch (error: any) {
     console.error("Gemini API Error:", error);
     logUsage('gemini_query', 'error');
-    if (JSON.stringify(error).includes("403")) {
+    
+    const errorStr = JSON.stringify(error);
+    if (error?.status === 503 || errorStr.includes("503") || errorStr.includes("UNAVAILABLE")) {
+      return "The AI service is currently experiencing high demand or is temporarily unavailable (503). Please try again in a few moments.";
+    }
+    
+    if (errorStr.includes("403")) {
         return "I'm sorry, there seems to be a permission issue with the AI service. Please check if your API key is correctly configured and has access to the requested model.";
     }
-    return "Error: Unable to connect to the legal advisor.";
+    return "Error: Unable to connect to the legal advisor. Please try again.";
   }
 }

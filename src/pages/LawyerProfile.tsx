@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
 import { 
   Star, 
@@ -22,7 +22,7 @@ import { useLanguage } from "../contexts/LanguageContext";
 import { cn } from "../lib/utils";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth, db, signInWithGoogle, handleFirestoreError, OperationType } from "../lib/firebase";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, updateDoc, doc } from "firebase/firestore";
 
 export default function LawyerProfile() {
   const { id } = useParams<{ id: string }>();
@@ -75,6 +75,12 @@ export default function LawyerProfile() {
 
   const today = new Date().toISOString().split('T')[0];
 
+  const upcomingDays = Array.from({ length: 14 }).map((_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() + i);
+    return d.toISOString().split('T')[0];
+  });
+
   const isTimeInPast = (dateStr: string, timeStr: string) => {
     if (!dateStr || !timeStr) return false;
     const now = new Date();
@@ -96,12 +102,8 @@ export default function LawyerProfile() {
       if (firstValidTime) {
         setSelectedTime(firstValidTime);
       } else {
-        // If no slots left today, move to tomorrow
-        const tomorrow = new Date();
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        const tomorrowStr = tomorrow.toISOString().split('T')[0];
-        setSelectedDate(tomorrowStr);
-        setSelectedTime(timeSlots[0]);
+        // If no slots left today, just clear the time
+        setSelectedTime("");
       }
     };
     
@@ -122,6 +124,8 @@ export default function LawyerProfile() {
     load();
   }, [id]);
 
+  const [searchParams] = useSearchParams();
+  const rescheduleId = searchParams.get('reschedule');
   const [showConfirm, setShowConfirm] = useState(false);
 
   const handleBook = async () => {
@@ -147,18 +151,28 @@ export default function LawyerProfile() {
     try {
       const scheduledDateTime = new Date(`${selectedDate} ${selectedTime}`).toISOString();
       const path = "consultations";
-      await addDoc(collection(db, path), {
-        clientId: user.uid,
-        lawyerId: lawyer.id,
-        lawyerName: lawyer.name,
-        price: lawyer.price,
-        scheduledAt: scheduledDateTime,
-        meetingType,
-        meetingLink: meetingType === 'video' ? `https://meet.google.com/mock-id-${Math.random().toString(36).substring(7)}` : null,
-        status: "await_confirmation",
-        paymentStatus: "paid",
-        createdAt: serverTimestamp(),
-      });
+      
+      if (rescheduleId) {
+        await updateDoc(doc(db, path, rescheduleId), {
+          scheduledAt: scheduledDateTime,
+          meetingType,
+          meetingLink: meetingType === 'video' ? `https://meet.google.com/mock-id-${Math.random().toString(36).substring(7)}` : null,
+          status: "pending",
+        });
+      } else {
+        await addDoc(collection(db, path), {
+          clientId: user.uid,
+          lawyerId: lawyer.id,
+          lawyerName: lawyer.name,
+          price: typeof lawyer.price === 'number' ? `AED ${lawyer.price}` : String(lawyer.price),
+          scheduledAt: scheduledDateTime,
+          meetingType,
+          meetingLink: meetingType === 'video' ? `https://meet.google.com/mock-id-${Math.random().toString(36).substring(7)}` : null,
+          status: "pending",
+          paymentStatus: "paid",
+          createdAt: serverTimestamp(),
+        });
+      }
 
       navigate("/appointments");
     } catch (err) {
@@ -230,7 +244,7 @@ export default function LawyerProfile() {
             <motion.div 
                initial={{ opacity: 0, y: 20 }}
                animate={{ opacity: 1, y: 0 }}
-               className="bg-white p-8 rounded-[3rem] border border-prestige-100 shadow-2xl shadow-prestige-900/5 text-center"
+               className="bg-white p-6 md:p-8 rounded-[2rem] md:rounded-[3rem] border border-prestige-100 shadow-2xl shadow-prestige-900/5 text-center"
             >
               <div className="relative inline-block mb-6">
                 <div className="w-40 h-40 rounded-[2.5rem] overflow-hidden border-4 border-prestige-50 mx-auto shadow-xl">
@@ -267,18 +281,56 @@ export default function LawyerProfile() {
               </div>
 
               <div className="space-y-6 pt-6 border-t border-prestige-50">
-                <div className="space-y-4">
+                <div className="space-y-4 overflow-hidden">
                   <label className="text-[10px] font-black uppercase tracking-widest text-prestige-400 block text-start">1. {t("chooseDate")}</label>
-                  <input 
-                    type="date" 
-                    min={today}
-                    value={selectedDate}
-                    onChange={(e) => {
-                      setSelectedDate(e.target.value);
-                      setSelectedTime(""); // Reset time when date changes
-                    }}
-                    className="w-full px-5 py-3 bg-prestige-50 border border-prestige-100 rounded-xl font-bold text-prestige-950 focus:ring-2 focus:ring-accent-indigo focus:border-transparent outline-none"
-                  />
+                  <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide -mx-2 px-2 no-scrollbar">
+                    {upcomingDays.map((dateStr) => {
+                      const d = new Date(dateStr);
+                      const dayNameShort = d.toLocaleDateString(isRtl ? 'ar-AE' : 'en-US', { weekday: 'short' });
+                      const dayNameLong = d.toLocaleDateString('en-US', { weekday: 'long' });
+                      const dayNum = d.toLocaleDateString(isRtl ? 'ar-AE' : 'en-US', { day: 'numeric' });
+                      const month = d.toLocaleDateString(isRtl ? 'ar-AE' : 'en-US', { month: 'short' });
+                      const isOffDay = lawyer?.offDays?.includes(dayNameLong) || lawyer?.isOOO;
+                      const isSelected = selectedDate === dateStr;
+
+                      return (
+                        <button
+                          key={dateStr}
+                          type="button"
+                          disabled={isOffDay}
+                          onClick={() => {
+                            setSelectedDate(dateStr);
+                            setSelectedTime("");
+                          }}
+                          className={cn(
+                            "min-w-[72px] shrink-0 py-3 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all border",
+                            isSelected 
+                              ? "bg-accent-indigo text-white border-accent-indigo shadow-lg shadow-accent-indigo/20" 
+                              : isOffDay 
+                                ? "bg-prestige-50 border-prestige-100 text-prestige-300 opacity-50 cursor-not-allowed" 
+                                : "bg-white text-prestige-900 border-prestige-100 hover:border-accent-indigo"
+                          )}
+                        >
+                          <span className="text-[10px] font-bold uppercase tracking-widest opacity-80">{dayNameShort}</span>
+                          <span className="text-xl font-black leading-none">{dayNum}</span>
+                          <span className="text-[10px] font-bold opacity-80">{month}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="flex items-center gap-2 mt-2">
+                    <Calendar className="w-4 h-4 text-prestige-400" />
+                    <input 
+                      type="date" 
+                      min={today}
+                      value={selectedDate}
+                      onChange={(e) => {
+                        setSelectedDate(e.target.value);
+                        setSelectedTime(""); 
+                      }}
+                      className="bg-transparent border-none text-[10px] font-bold text-prestige-600 outline-none flex-1 max-w-[120px] cursor-pointer"
+                    />
+                  </div>
                 </div>
 
                 <div className="space-y-4">
@@ -366,14 +418,14 @@ export default function LawyerProfile() {
                     className="px-8 py-4 bg-accent-gold text-prestige-950 rounded-2xl font-black hover:bg-white transition-all flex items-center justify-center gap-3 active:scale-95 disabled:opacity-50 disabled:grayscale"
                   >
                     {isBooking ? <Loader2 className="w-5 h-5 animate-spin" /> : <Calendar className="w-5 h-5" />}
-                    {t("bookNow")}
+                    {rescheduleId ? "Reschedule Consultation" : t("bookNow")}
                   </button>
                 </div>
               </div>
             </motion.div>
 
             {/* Qualifications */}
-            <div className="bg-white p-8 rounded-[3rem] border border-prestige-100 shadow-xl shadow-prestige-900/5 space-y-6 text-start">
+            <div className="bg-white p-6 md:p-8 rounded-[2rem] md:rounded-[3rem] border border-prestige-100 shadow-xl shadow-prestige-900/5 space-y-6 text-start">
                <h3 className="text-sm font-black uppercase tracking-widest text-prestige-900 flex items-center gap-3">
                  <GraduationCap className="w-5 h-5 text-accent-gold" /> {t("education")}
                </h3>
@@ -388,7 +440,7 @@ export default function LawyerProfile() {
             </div>
 
             {/* Languages */}
-            <div className="bg-white p-8 rounded-[3rem] border border-prestige-100 shadow-xl shadow-prestige-900/5 space-y-6 text-start">
+            <div className="bg-white p-6 md:p-8 rounded-[2rem] md:rounded-[3rem] border border-prestige-100 shadow-xl shadow-prestige-900/5 space-y-6 text-start">
                <h3 className="text-sm font-black uppercase tracking-widest text-prestige-900 flex items-center gap-3">
                  <Languages className="w-5 h-5 text-accent-gold" /> {t("languages")}
                </h3>
@@ -407,7 +459,7 @@ export default function LawyerProfile() {
             <motion.div 
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
-              className="bg-white p-12 rounded-[4rem] border border-prestige-100 shadow-xl shadow-prestige-900/5 space-y-8"
+              className="bg-white p-8 md:p-12 rounded-[2.5rem] md:rounded-[4rem] border border-prestige-100 shadow-xl shadow-prestige-900/5 space-y-8"
             >
               <div className="space-y-6">
                 <h2 className="text-4xl font-black text-prestige-950 tracking-tighter leading-none">
@@ -454,7 +506,7 @@ export default function LawyerProfile() {
             </motion.div>
 
             {/* Reviews Section */}
-            <div className="bg-white p-12 rounded-[4rem] border border-prestige-100 shadow-xl shadow-prestige-900/5 space-y-12">
+            <div className="bg-white p-8 md:p-12 rounded-[2.5rem] md:rounded-[4rem] border border-prestige-100 shadow-xl shadow-prestige-900/5 space-y-12">
                <div className="flex items-center justify-between">
                   <h2 className="text-3xl font-black text-prestige-950 tracking-tighter leading-none">
                     {t("client")} <span className="text-accent-indigo italic serif font-normal">{t("clientFeedback").split("Feedback")[1] || "Feedback"}</span>
@@ -529,7 +581,7 @@ export default function LawyerProfile() {
               <div className="space-y-4">
                 <h3 className="text-3xl font-black text-prestige-950 tracking-tighter">{t("confirmBooking").split("Booking")[0]} <span className="text-accent-indigo italic serif font-normal">{t("scheduling") || "Booking"}</span></h3>
                 <p className="text-prestige-500 font-medium leading-relaxed">
-                  {t("bookConsultationWith")} <span className="text-prestige-950 font-bold">{lawyer.name}</span> {isRtl ? "مقابل" : "for"} <span className="text-accent-indigo font-bold">{lawyer.price} {t("currency")}</span>?
+                  {rescheduleId ? "Reschedule your consultation with " : t("bookConsultationWith")} <span className="text-prestige-950 font-bold">{lawyer.name}</span> {isRtl ? "مقابل" : "for"} <span className="text-accent-indigo font-bold">{lawyer.price} {t("currency")}</span>?
                 </p>
                 <div className="p-4 bg-emerald-50 border border-emerald-100 rounded-2xl text-[10px] font-bold text-emerald-700 flex items-center gap-3 text-start">
                   <ShieldCheck className="w-4 h-4 shrink-0" />

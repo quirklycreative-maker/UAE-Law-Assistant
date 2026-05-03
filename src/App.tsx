@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
-import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useNavigate, Navigate } from "react-router-dom";
 import Layout from "./components/Layout";
 import { format } from "date-fns";
 import { Search, MessageSquare, Scale, Users, Gavel, ShieldCheck, ArrowRight, Send, Loader2, Calendar, CheckCircle2, Briefcase, Mic, MicOff, Volume2, VolumeX, FileText, X, Paperclip, Camera, Image as ImageIcon, RefreshCw, Star, Filter, Tag, ChevronDown, DollarSign, MapPin, Zap } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { getLegalAdvice } from "./services/legalService";
+import { getLegalAdvice, getLawyerCoPilotAdvice } from "./services/legalService";
 import { searchLocalLegislation, formatLawsForContext } from "./services/legislationService";
 import { getLawyers, Lawyer, getLawyerByUserId } from "./services/lawyerService";
 import ReactMarkdown from "react-markdown";
@@ -15,6 +15,7 @@ import { auth, db, signInWithGoogle, handleFirestoreError, OperationType } from 
 import { collection, addDoc, query, where, getDocs, onSnapshot, orderBy, serverTimestamp, updateDoc, doc, setDoc } from "firebase/firestore";
 import { useLanguage } from "./contexts/LanguageContext";
 import { extractTextFromPdf } from "./lib/pdfUtils";
+import { transcribeAudioText, generateSpeechTTS, playPCM16Audio } from "./services/audioService";
 import History from "./pages/History";
 import { UserProvider, useUser } from "./contexts/UserContext";
 import LawyerProfile from "./pages/LawyerProfile";
@@ -62,13 +63,17 @@ function Home() {
                 </span>
               </span>
               <h1 className="text-5xl md:text-8xl font-black leading-[0.9] tracking-tighter text-white">
-                {!lawyerProfile && (
-                  <>
+                {!lawyerProfile ? (
+                   <>
                     {t("heroTitle")}
                     <br />
+                    <span className="text-accent-gold italic serif font-normal">Huqiqiyy</span>
+                   </>
+                ) : (
+                  <>
+                    <span className="text-accent-gold italic serif font-normal">{t("aiCoPilot")}</span>
                   </>
                 )}
-                <span className="text-accent-gold italic serif font-normal">{lawyerProfile ? t("aiCoPilot") : "Huqiqiyy Co-pilot"}</span>
               </h1>
               <p className="text-lg md:text-xl text-prestige-300 max-w-xl font-medium leading-relaxed">
                 {lawyerProfile 
@@ -81,7 +86,7 @@ function Home() {
               {lawyerProfile ? (
                 <div className="flex flex-col items-center gap-8 w-full">
                   <button 
-                    onClick={() => navigate("/lawyer/assistant")}
+                    onClick={() => navigate("/assistant")}
                     className="px-8 md:px-10 py-4 md:py-5 bg-accent-gold text-prestige-950 rounded-2xl font-black hover:bg-white transition-all flex items-center justify-center gap-3 text-sm shadow-2xl shadow-accent-gold/20 active:scale-95 group"
                   >
                     <Zap className="w-5 h-5 fill-current group-hover:animate-pulse" />
@@ -288,6 +293,8 @@ function Home() {
 function Assistant() {
   const navigate = useNavigate();
   const { t, language, isRtl } = useLanguage();
+  const { user, lawyerProfile, loading } = useUser();
+
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<{ role: 'user' | 'model', text: string, timestamp: number }[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -304,7 +311,6 @@ function Assistant() {
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<any>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const { user } = useUser();
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
 
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -338,6 +344,10 @@ function Assistant() {
 
   const isSending = useRef(false);
 
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const currentAudioSourceRef = useRef<AudioBufferSourceNode | null>(null);
+
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
@@ -346,115 +356,108 @@ function Assistant() {
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
-      if (recognitionRef.current) {
-        try { recognitionRef.current.stop(); } catch (e) {}
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+        try { mediaRecorderRef.current.stop(); } catch (e) {}
+      }
+      if (currentAudioSourceRef.current) {
+        try { currentAudioSourceRef.current.stop(); } catch (e) {}
       }
     };
   }, []);
 
-  const initSpeechRecognition = () => {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      setMicError("Speech recognition not supported.");
-      return null;
-    }
-
-    const recognition = new SpeechRecognition();
-    recognition.continuous = false;
-    recognition.interimResults = false;
-    recognition.lang = language === 'ar' ? 'ar-AE' : 'en-US';
-
-    recognition.onstart = () => {
-      setIsListening(true);
-      setMicError(null);
-    };
-
-    recognition.onresult = (event: any) => {
-      const transcript = event.results[0][0].transcript;
-      setInput(transcript);
-      setIsListening(false);
-      handleSend(transcript);
-    };
-
-    recognition.onerror = (event: any) => {
-      console.error("Speech recognition error:", event.error);
-      setIsListening(false);
-      
-      const errorMap: Record<string, string> = {
-        'not-allowed': "Microphone access blocked. Click the lock/mic icon in your address bar or use 'Open in New Tab'.",
-        'service-not-allowed': "Service not allowed. Try Chrome or use 'Open in New Tab'.",
-        'no-speech': "", 
-        'network': "Network error. Please check your connection.",
-        'audio-capture': "Microphone not found or busy.",
-        'aborted': "Recognition aborted.",
-      };
-
-      if (event.error !== 'no-speech') {
-        const msg = errorMap[event.error] || `Speech error: ${event.error}`;
-        setMicError(msg);
-      }
-    };
-
-    recognition.onend = () => {
-      setIsListening(false);
-    };
-
-    return recognition;
-  };
-
   const toggleListening = async () => {
     if (isListening) {
-      try {
-        recognitionRef.current?.stop();
-      } catch (e) {
-        console.error("Stop error:", e);
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+        mediaRecorderRef.current.stop();
       }
       setIsListening(false);
     } else {
       setMicError(null);
-      
-      // Pre-flight permission check to trigger browser prompt reliably
-      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        try {
-          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-          stream.getTracks().forEach(track => track.stop()); // Close immediately
-        } catch (err: any) {
-          console.error("Mic pre-flight error:", err);
-          if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError' || err.message?.includes('allowed')) {
-            setMicError("Microphone access blocked. Please allow it in browser settings or use 'Open in New Tab'.");
-            return;
-          }
-          if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError' || err.message?.includes('not found')) {
-            setMicError("Microphone not found. Please connect a mic or check system settings.");
-            return;
-          }
-        }
-      }
+      audioChunksRef.current = [];
 
-      const recognition = initSpeechRecognition();
-      if (recognition) {
-        recognitionRef.current = recognition;
-        try {
-          recognition.start();
-        } catch (e) {
-          console.error("Launch error:", e);
-          if (!isListening) {
-            setMicError("Mic initialization failed.");
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+
+        mediaRecorder.ondataavailable = (event) => {
+          if (event.data.size > 0) {
+            audioChunksRef.current.push(event.data);
           }
+        };
+
+        mediaRecorder.onstop = async () => {
+          stream.getTracks().forEach(track => track.stop());
+          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+          audioChunksRef.current = [];
+
+          if (audioBlob.size > 1000) {
+            try {
+              setIsLoading(true);
+              const reader = new FileReader();
+              reader.readAsDataURL(audioBlob);
+              reader.onloadend = async () => {
+                const base64Audio = reader.result as string;
+                try {
+                  const transcribedText = await transcribeAudioText(base64Audio, 'audio/webm', language);
+                  if (transcribedText.trim()) {
+                    setInput(transcribedText);
+                    handleSend(transcribedText);
+                  }
+                } catch (transcribeError) {
+                  console.error("STT Error:", transcribeError);
+                  setMicError("Could not transcribe audio.");
+                } finally {
+                  setIsLoading(false);
+                }
+              };
+            } catch (err) {
+              setIsLoading(false);
+              console.error("Blob to base64 error", err);
+            }
+          }
+        };
+
+        mediaRecorder.start();
+        mediaRecorderRef.current = mediaRecorder;
+        setIsListening(true);
+      } catch (err: any) {
+        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError' || err.message?.includes('allowed')) {
+          setMicError("Microphone access blocked. Please allow it in browser settings or use 'Open in New Tab'.");
+        } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError' || err.message?.includes('not found')) {
+          setMicError("Microphone not found. Please connect a mic or check system settings.");
+        } else {
+          console.warn("Mic pre-flight info:", err.message || err);
+          setMicError("Microphone error: " + (err.message || "Unknown issue"));
         }
       }
     }
   };
 
-  const speak = (text: string) => {
+  const speak = async (text: string) => {
     if (!voiceEnabled) return;
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = language === 'ar' ? 'ar-SA' : 'en-US';
-    window.speechSynthesis.speak(utterance);
+    
+    if (currentAudioSourceRef.current) {
+        try { currentAudioSourceRef.current.stop(); } catch (e) {}
+    }
+
+    try {
+        const base64TTS = await generateSpeechTTS(text, language);
+        if (base64TTS) {
+             const source = await playPCM16Audio(base64TTS, 24000);
+             currentAudioSourceRef.current = source;
+        }
+    } catch (err) {
+        console.error("TTS Error:", err);
+        // Fallback to browser TTS if Gemini fails
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = language === 'ar' ? 'ar-SA' : 'en-US';
+        window.speechSynthesis.speak(utterance);
+    }
   };
 
   useEffect(() => {
+    if (!lawyerProfile) return;
     const params = new URLSearchParams(window.location.search);
     const q = params.get('q');
     if (q && !isSending.current) {
@@ -511,6 +514,20 @@ function Assistant() {
   const handleSend = async (text: string = input) => {
     if ((!text.trim() && !pdfContent) || isLoading || isSending.current) return;
     
+    // Safety check - block harmful or off-topic queries
+    const harmfulPatterns = [/kill/i, /murder/i, /suicide/i, /assassinate/i, /how to commit a crime/i];
+    const offTopicPatterns = [/recipe/i, /weather/i, /movie/i, /music/i];
+
+    if (harmfulPatterns.some(pattern => pattern.test(text)) || offTopicPatterns.some(pattern => pattern.test(text))) {
+      const now = Date.now();
+      const message = harmfulPatterns.some(pattern => pattern.test(text))
+        ? "I cannot assist with this request."
+        : "This inquiry appears to be outside the scope of this legal assistance platform. I am designed to help with legal research and analysis. Please feel free to ask a question related to UAE law or legal documentation.";
+      
+      setMessages(prev => [...prev, { role: 'user', text: text, timestamp: now }, { role: 'model', text: message, timestamp: now + 1 }]);
+      return;
+    }
+    
     setMicError(null);
     isSending.current = true;
     setInput("");
@@ -546,7 +563,10 @@ function Assistant() {
       const localLaws = await searchLocalLegislation(text || "legal document analysis");
       const context = formatLawsForContext(localLaws);
 
-      const advice = await getLegalAdvice(fullPrompt, history, context, language, attachedImage || undefined);
+      const advice = lawyerProfile 
+        ? await getLawyerCoPilotAdvice(fullPrompt, history, context, language)
+        : await getLegalAdvice(fullPrompt, history, context, language, attachedImage || undefined);
+        
       const assistantNow = Date.now();
       setMessages(prev => [...prev, { role: 'model', text: advice, timestamp: assistantNow }]);
       
@@ -1008,9 +1028,11 @@ function Lawyers() {
             clientId: user.uid,
             lawyerId: lawyer.id,
             lawyerName: lawyer.name,
-            price: lawyer.price,
+            price: typeof lawyer.price === 'number' ? `AED ${lawyer.price}` : String(lawyer.price),
             scheduledAt: new Date(Date.now() + 86400000).toISOString(),
-            status: "await_confirmation",
+            meetingType: 'video',
+            meetingLink: `https://meet.google.com/mock-id-${Math.random().toString(36).substring(7)}`,
+            status: "pending",
             paymentStatus: "paid",
             createdAt: serverTimestamp(),
           });
@@ -1027,7 +1049,7 @@ function Lawyers() {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto px-6 py-40 text-center space-y-6">
+      <div className="container mx-auto px-6 py-20 md:py-40 text-center space-y-6">
         <Loader2 className="w-16 h-16 text-accent-indigo animate-spin mx-auto" />
         <p className="text-prestige-500 font-black uppercase tracking-widest text-sm animate-pulse">Syncing with MOJ Directory...</p>
       </div>
@@ -1053,7 +1075,7 @@ function Lawyers() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white p-10 rounded-[3rem] border border-prestige-100 shadow-2xl shadow-prestige-900/5 flex flex-wrap items-end gap-10">
+      <div className="bg-white p-6 md:p-10 rounded-3xl md:rounded-[3rem] border border-prestige-100 shadow-2xl shadow-prestige-900/5 flex flex-wrap items-end gap-6 md:gap-10">
         <div className="flex-1 min-w-[200px] space-y-4">
           <label className="text-[10px] font-black uppercase tracking-[0.2em] text-prestige-400 flex items-center gap-2">
             <Filter className="w-3.5 h-3.5" /> {t("filterSpecialization")}
@@ -1101,7 +1123,7 @@ function Lawyers() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-10">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 md:gap-10">
         <AnimatePresence mode="popLayout">
           {filteredLawyers.map(lawyer => (
             <motion.div
@@ -1196,6 +1218,8 @@ function Appointments() {
   const { t, isRtl } = useLanguage();
   const [appointments, setAppointments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [cancelDialog, setCancelDialog] = useState<{ isOpen: boolean; aptId: string | null; isRefundable: boolean }>({ isOpen: false, aptId: null, isRefundable: false });
+  const [rescheduleDialog, setRescheduleDialog] = useState<{ isOpen: boolean; aptId: string | null; lawyerId: string | null; isRefundable: boolean }>({ isOpen: false, aptId: null, lawyerId: null, isRefundable: false });
 
   useEffect(() => {
     if (!user) return;
@@ -1254,7 +1278,7 @@ function Appointments() {
               </div>
               <span className="text-[10px] font-black text-accent-gold uppercase tracking-[0.3em]">Authorized Workspace</span>
            </div>
-           <h2 className="text-5xl font-black text-prestige-950 tracking-tighter">
+           <h2 className="text-4xl md:text-5xl font-black text-prestige-950 tracking-tighter">
              Legal <span className="text-accent-indigo italic serif">Sessions</span>
            </h2>
         </div>
@@ -1262,12 +1286,12 @@ function Appointments() {
       </div>
 
       {loading ? (
-        <div className="flex flex-col items-center justify-center py-40 gap-6">
+        <div className="flex flex-col items-center justify-center py-20 md:py-40 gap-6">
           <Loader2 className="w-16 h-16 text-accent-indigo animate-spin" />
           <p className="text-prestige-400 font-black uppercase tracking-widest text-xs animate-pulse">Retreiving Secure Records...</p>
         </div>
       ) : appointments.length === 0 ? (
-        <div className="bg-white rounded-[4rem] p-24 text-center border-2 border-dashed border-prestige-100 space-y-8 shadow-2xl shadow-prestige-900/5">
+        <div className="bg-white rounded-3xl md:rounded-[4rem] p-10 md:p-24 text-center border-2 border-dashed border-prestige-100 space-y-8 shadow-2xl shadow-prestige-900/5">
           <div className="w-20 h-20 bg-prestige-50 rounded-full flex items-center justify-center mx-auto text-prestige-200">
              <Briefcase className="w-10 h-10" />
           </div>
@@ -1283,7 +1307,7 @@ function Appointments() {
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-10">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 xl:gap-10">
           {appointments.map((apt) => (
             <motion.div 
               initial={{ opacity: 0, y: 20 }}
@@ -1303,6 +1327,7 @@ function Appointments() {
                   <span className={cn(
                     "px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest shadow-sm",
                     apt.status === 'confirmed' ? "bg-emerald-500 text-white" : 
+                    apt.status === 'cancelled' ? "bg-red-500 text-white" : 
                     apt.status === 'await_confirmation' ? "bg-accent-indigo text-white" : "bg-accent-gold text-prestige-950"
                   )}>
                     {apt.status === 'await_confirmation' ? "Awaiting Expert" : apt.status}
@@ -1335,17 +1360,163 @@ function Appointments() {
                      <span className="text-lg font-black text-prestige-950">{apt.price}</span>
                      <span className="text-[10px] font-black text-prestige-400 uppercase tracking-widest">AED</span>
                   </div>
-                  <button className="text-[10px] text-accent-indigo font-black uppercase tracking-[0.2em] hover:text-prestige-950 transition-colors flex items-center gap-2 group-btn">
-                     Join Session <ArrowRight className="w-3.5 h-3.5 group-btn-hover:translate-x-1 transition-transform" />
-                  </button>
+                  <div className="flex gap-4 items-center">
+                    {['pending', 'await_confirmation', 'confirmed'].includes(apt.status) && (() => {
+                      const scheduledTime = apt.scheduledAt ? new Date(apt.scheduledAt).getTime() : Date.now() + 86400000;
+                      const diffHours = (scheduledTime - Date.now()) / (1000 * 60 * 60);
+                      const canModify = diffHours > 0;
+                      const isRefundable = diffHours >= 6;
+                      
+                      if (!canModify) {
+                        return (
+                           <button className="text-[10px] text-accent-indigo font-black uppercase tracking-[0.2em] hover:text-prestige-950 transition-colors flex items-center gap-2 group-btn">
+                             Join Session <ArrowRight className="w-3.5 h-3.5 group-btn-hover:translate-x-1 transition-transform" />
+                           </button>
+                        );
+                      }
+                      
+                      return (
+                        <div className="flex gap-4">
+                          <button 
+                            onClick={() => setCancelDialog({ isOpen: true, aptId: apt.id, isRefundable: isRefundable })}
+                            className="text-[10px] text-red-500 font-black uppercase tracking-[0.2em] hover:text-red-700 transition-colors flex items-center gap-1.5"
+                          >
+                            <X className="w-3.5 h-3.5" /> Cancel
+                          </button>
+                          <button 
+                            onClick={() => {
+                               if (!isRefundable) {
+                                 setRescheduleDialog({ isOpen: true, aptId: apt.id, lawyerId: apt.lawyerId, isRefundable: false });
+                               } else {
+                                 navigate(`/lawyers/${apt.lawyerId}?reschedule=${apt.id}`);
+                               }
+                            }}
+                            className="text-[10px] text-accent-indigo font-black uppercase tracking-[0.2em] hover:text-prestige-950 transition-colors flex items-center gap-1.5"
+                          >
+                            <Calendar className="w-3.5 h-3.5" /> Reschedule
+                          </button>
+                        </div>
+                      );
+                    })()}
+                  </div>
                 </div>
               </div>
             </motion.div>
           ))}
         </div>
       )}
+
+      <AnimatePresence>
+        {cancelDialog.isOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-prestige-950/20 backdrop-blur-sm">
+             <motion.div 
+               initial={{ opacity: 0, scale: 0.95 }}
+               animate={{ opacity: 1, scale: 1 }}
+               exit={{ opacity: 0, scale: 0.95 }}
+               className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl border border-prestige-100"
+             >
+                <div className="w-12 h-12 bg-red-50 text-red-500 rounded-2xl flex items-center justify-center mb-6">
+                  <X className="w-6 h-6" />
+                </div>
+                <h3 className="text-xl font-black text-prestige-950 mb-2">Cancel Appointment?</h3>
+                <p className="text-sm font-medium text-prestige-500 mb-8">
+                  {cancelDialog.isRefundable 
+                    ? "You are eligible for a full refund because you are cancelling more than 6 hours in advance." 
+                    : "WARNING: Less than 6 hours remaining. NO REFUND will be issued if you cancel now."}
+                </p>
+                <div className="flex gap-3">
+                  <button onClick={() => setCancelDialog({ isOpen: false, aptId: null, isRefundable: false })} className="flex-1 py-3 text-xs font-black text-prestige-500 uppercase tracking-widest hover:bg-prestige-50 rounded-xl transition-colors">Go Back</button>
+                  <button onClick={async () => {
+                    try {
+                      if (cancelDialog.aptId) {
+                        await updateDoc(doc(db, "consultations", cancelDialog.aptId), { status: "cancelled" });
+                      }
+                    } catch (e) {
+                      handleFirestoreError(e, OperationType.UPDATE, "consultations");
+                    } finally {
+                      setCancelDialog({ isOpen: false, aptId: null, isRefundable: false });
+                    }
+                  }} className="flex-1 py-3 bg-red-500 text-white text-xs font-black uppercase tracking-widest rounded-xl hover:bg-red-600 transition-colors shadow-lg shadow-red-500/20">Confirm</button>
+                </div>
+             </motion.div>
+          </div>
+        )}
+
+        {rescheduleDialog.isOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-prestige-950/20 backdrop-blur-sm">
+             <motion.div 
+               initial={{ opacity: 0, scale: 0.95 }}
+               animate={{ opacity: 1, scale: 1 }}
+               exit={{ opacity: 0, scale: 0.95 }}
+               className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl border border-prestige-100"
+             >
+                <div className="w-12 h-12 bg-accent-gold/10 text-accent-gold rounded-2xl flex items-center justify-center mb-6">
+                  <Calendar className="w-6 h-6" />
+                </div>
+                <h3 className="text-xl font-black text-prestige-950 mb-2">Reschedule Session?</h3>
+                <p className="text-sm font-medium text-prestige-500 mb-8">
+                  Less than 6 hours remaining. Rescheduling now will not be refunded for the current time block. Are you sure?
+                </p>
+                <div className="flex gap-3">
+                  <button onClick={() => setRescheduleDialog({ isOpen: false, aptId: null, lawyerId: null, isRefundable: false })} className="flex-1 py-3 text-xs font-black text-prestige-500 uppercase tracking-widest hover:bg-prestige-50 rounded-xl transition-colors">Go Back</button>
+                  <button onClick={() => {
+                    navigate(`/lawyers/${rescheduleDialog.lawyerId}?reschedule=${rescheduleDialog.aptId}`);
+                    setRescheduleDialog({ isOpen: false, aptId: null, lawyerId: null, isRefundable: false });
+                  }} className="flex-1 py-3 bg-accent-indigo text-white text-xs font-black uppercase tracking-widest rounded-xl hover:bg-prestige-950 transition-colors shadow-lg shadow-accent-indigo/20">Proceed</button>
+                </div>
+             </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
+}
+
+// --- Protected Routes Helper ---
+
+function ProtectedRoute({ requireUser = false, requireLawyer = false, requireAdmin = false, children }: { requireUser?: boolean, requireLawyer?: boolean, requireAdmin?: boolean, children: React.ReactNode }) {
+  const { user, lawyerProfile, isSuperAdmin, loading } = useUser();
+  const { t } = useLanguage();
+
+  if (loading) {
+    return (
+      <div className="flex-1 flex items-center justify-center p-20">
+        <Loader2 className="w-8 h-8 text-accent-indigo animate-spin" />
+      </div>
+    );
+  }
+
+  if (!user && (requireUser || requireLawyer || requireAdmin)) {
+    return <Navigate to="/" replace />;
+  }
+
+  if (requireAdmin && !isSuperAdmin) {
+    return <Navigate to="/" replace />;
+  }
+
+  if (requireLawyer && !lawyerProfile) {
+    // If they aren't a lawyer, guide them to registration or home.
+    // Since LawyerDashboard has a custom UI for non-lawyers (which allows registration),
+    // maybe we shouldn't block the dashboard?
+    // Wait, the prompt says "only lawyers should access the Lawyer Dashboard and Co-pilot features."
+    // Let's protect them completely.
+    return (
+      <div className="container mx-auto px-6 py-24 text-center space-y-6">
+        <div className="w-20 h-20 bg-prestige-100 rounded-full flex items-center justify-center mx-auto">
+          <ShieldCheck className="w-10 h-10 text-prestige-400" />
+        </div>
+        <div className="space-y-2">
+          <h2 className="text-3xl font-black text-prestige-950 tracking-tight">Access Restricted</h2>
+          <p className="text-prestige-500 font-medium pb-4">This section is exclusively for registered legal professionals.</p>
+          <a href="/register-lawyer" className="inline-block px-8 py-4 bg-accent-indigo text-white rounded-2xl font-black shadow-xl shadow-accent-indigo/20 hover:scale-105 transition-transform">
+            {t("registerAsLawyer") || "Register as Lawyer"}
+          </a>
+        </div>
+      </div>
+    );
+  }
+
+  return children;
 }
 
 // --- Main App ---
@@ -1357,14 +1528,22 @@ export default function App() {
         <Layout>
           <Routes>
             <Route path="/" element={<Home />} />
-            <Route path="/assistant" element={<Assistant />} />
+            <Route path="/assistant" element={
+              <ProtectedRoute><Assistant /></ProtectedRoute>
+             } />
             <Route path="/laws" element={<Legislation />} />
             <Route path="/lawyers" element={<Lawyers />} />
             <Route path="/lawyers/:id" element={<LawyerProfile />} />
             <Route path="/register-lawyer" element={<LawyerRegistration />} />
-            <Route path="/lawyer/dashboard" element={<LawyerDashboard />} />
-            <Route path="/lawyer/assistant" element={<LawyerAssistant />} />
-            <Route path="/management" element={<Management />} />
+            <Route path="/lawyer/dashboard" element={
+              <ProtectedRoute requireLawyer><LawyerDashboard /></ProtectedRoute>
+            } />
+            <Route path="/lawyer/assistant" element={
+              <ProtectedRoute requireLawyer><LawyerAssistant /></ProtectedRoute>
+            } />
+            <Route path="/management" element={
+              <ProtectedRoute requireAdmin><Management /></ProtectedRoute>
+            } />
             <Route path="/support" element={<Support />} />
             <Route path="/appointments" element={<Appointments />} />
             <Route path="/history" element={<History />} />

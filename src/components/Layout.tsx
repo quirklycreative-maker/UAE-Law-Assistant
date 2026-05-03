@@ -35,7 +35,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const secondaryNavItems = [
     { name: t("legislation"), path: "/laws", icon: Search },
     { name: t("history"), path: "/history", icon: Scale },
-    ...(lawyerProfile ? [{ name: t("aiStrategicAssociate"), path: "/lawyer/assistant", icon: Zap }] : []),
     ...(isSuperAdmin ? [{ name: t("admin"), path: "/management", icon: ShieldCheck }] : []),
   ];
 
@@ -74,7 +73,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           </Link>
 
           <nav className="hidden lg:flex items-center gap-10 h-full">
-            {navItems.map((item) => {
+            {[...navItems, ...secondaryNavItems].map((item) => {
               const isActive = location.pathname === item.path;
               return (
                 <Link
@@ -148,9 +147,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 <div className="hidden sm:block text-end">
                   <div className="flex items-center gap-2 justify-end mb-0.5">
                     {lawyerProfile && (
-                      <Link to="/lawyer/dashboard" className="text-[9px] font-black bg-accent-gold/10 text-accent-gold px-2 py-0.5 rounded border border-accent-gold/20 hover:bg-accent-gold hover:text-prestige-950 transition-colors uppercase tracking-widest leading-none">
-                        {t("management")}
-                      </Link>
+                      <>
+                        <Link to="/lawyer/dashboard" className="text-[9px] font-black bg-accent-gold/10 text-accent-gold px-2 py-0.5 rounded border border-accent-gold/20 hover:bg-accent-gold hover:text-prestige-950 transition-colors uppercase tracking-widest leading-none">
+                          Dashboard
+                        </Link>
+                        <Link to="/lawyer/assistant" className="text-[9px] font-black bg-accent-indigo/10 text-accent-indigo px-2 py-0.5 rounded border border-accent-indigo/20 hover:bg-accent-indigo hover:text-white transition-colors uppercase tracking-widest leading-none">
+                          Co-pilot
+                        </Link>
+                      </>
                     )}
                     <p className="text-xs font-bold text-prestige-900">{user.displayName}</p>
                   </div>
@@ -236,9 +240,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                           <div className="flex items-center gap-2">
                             <p className="text-sm font-bold text-prestige-900">{user.displayName}</p>
                     {lawyerProfile && (
-                              <Link to="/lawyer/dashboard" onClick={() => setIsMobileMenuOpen(false)} className="text-[8px] font-black bg-accent-gold/10 text-accent-gold px-1.5 py-0.5 rounded border border-accent-gold/20 uppercase">
-                                {t("management")}
-                              </Link>
+                              <>
+                                <Link to="/lawyer/dashboard" onClick={() => setIsMobileMenuOpen(false)} className="text-[8px] font-black bg-accent-gold/10 text-accent-gold px-1.5 py-0.5 rounded border border-accent-gold/20 uppercase">
+                                  Dashboard
+                                </Link>
+                                <Link to="/lawyer/assistant" onClick={() => setIsMobileMenuOpen(false)} className="text-[8px] font-black bg-accent-indigo/10 text-accent-indigo px-1.5 py-0.5 rounded border border-accent-indigo/20 uppercase">
+                                  Co-pilot
+                                </Link>
+                              </>
                             )}
                           </div>
                           <button onClick={logout} className="text-[10px] uppercase font-black tracking-widest text-red-500">

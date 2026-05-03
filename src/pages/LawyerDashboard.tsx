@@ -180,7 +180,7 @@ export default function LawyerDashboard() {
       <div className="grid md:grid-cols-2 gap-8">
         {/* Availability Controls */}
         <div className="space-y-8">
-           <div className="p-8 bg-white border border-prestige-100 rounded-[2.5rem] shadow-xl shadow-prestige-900/5 space-y-6">
+           <div className="p-6 md:p-8 bg-white border border-prestige-100 rounded-[2rem] md:rounded-[2.5rem] shadow-xl shadow-prestige-900/5 space-y-6">
               <div className="flex items-center justify-between">
                 <div className="space-y-1 text-start">
                   <h3 className="text-xl font-black text-prestige-950 tracking-tight">{t("visibilityStatus")}</h3>
@@ -223,7 +223,7 @@ export default function LawyerDashboard() {
               </div>
            </div>
 
-           <div className="p-8 bg-white border border-prestige-100 rounded-[2.5rem] shadow-xl shadow-prestige-900/5 space-y-6 text-start">
+           <div className="p-6 md:p-8 bg-white border border-prestige-100 rounded-[2rem] md:rounded-[2.5rem] shadow-xl shadow-prestige-900/5 space-y-6 text-start">
               <div className="space-y-1">
                 <h3 className="text-xl font-black text-prestige-950 tracking-tight">{t("scheduledDaysOff")}</h3>
                 <p className="text-xs font-bold text-prestige-400 uppercase tracking-widest leading-tight">{t("selectHolidays")}</p>
@@ -250,7 +250,7 @@ export default function LawyerDashboard() {
         </div>
 
         {/* Working Hours Controls */}
-        <div className="p-8 bg-white border border-prestige-100 rounded-[2.5rem] shadow-xl shadow-prestige-900/5 space-y-8 text-start">
+        <div className="p-6 md:p-8 bg-white border border-prestige-100 rounded-[2rem] md:rounded-[2.5rem] shadow-xl shadow-prestige-900/5 space-y-8 text-start">
           <div className="space-y-1">
             <h3 className="text-xl font-black text-prestige-950 tracking-tight">{t("standardWorkingHours")}</h3>
             <p className="text-xs font-bold text-prestige-400 uppercase tracking-widest leading-tight">{t("sessionTimingDesc")}</p>

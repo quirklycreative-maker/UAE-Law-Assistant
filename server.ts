@@ -4,9 +4,6 @@ import path from "path";
 import { fileURLToPath } from "url";
 import fs from "fs";
 import Stripe from "stripe";
-import dotenv from "dotenv";
-
-dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -25,7 +22,11 @@ async function startServer() {
 
   // API Routes
   app.get("/api/health", (req, res) => {
-    res.json({ status: "ok", env: process.env.NODE_ENV });
+    res.json({ 
+      status: "ok", 
+      env: process.env.NODE_ENV,
+      nodeVersion: process.versions.node
+    });
   });
 
   app.get("/api/debug", (req, res) => {
@@ -40,13 +41,16 @@ async function startServer() {
   });
 
   app.post("/api/create-checkout-session", async (req, res) => {
-    if (!stripe) return res.status(500).json({ error: "Stripe not configured" });
-    
     const { lawyerName, price, scheduledAt } = req.body;
     const protocol = req.headers['x-forwarded-proto'] || 'http';
     const host = req.headers['host'];
     const baseUrl = process.env.APP_URL || `${protocol}://${host}`;
 
+    if (!stripe) {
+      // Mock for AI Studio preview without Stripe keys
+      return res.json({ id: `mock_session_${Date.now()}` });
+    }
+    
     try {
       const session = await stripe.checkout.sessions.create({
         payment_method_types: ["card"],

@@ -92,9 +92,16 @@ service cloud.firestore {
     function isValidConsultation(data) {
       return data.clientId == request.auth.uid &&
              data.lawyerId is string &&
+             data.lawyerName is string &&
+             data.price is string &&
+             data.scheduledAt is string &&
+             (data.meetingType == 'video' || data.meetingType == 'in-person') &&
+             (data.meetingLink == null || data.meetingLink is string) &&
              data.status == 'pending' &&
+             data.paymentStatus == 'paid' &&
              data.createdAt == request.time &&
-             data.keys().hasAll(['clientId', 'lawyerId', 'status', 'createdAt']);
+             data.keys().hasAll(['clientId', 'lawyerId', 'lawyerName', 'price', 'scheduledAt', 'meetingType', 'meetingLink', 'status', 'paymentStatus', 'createdAt']) &&
+             data.keys().size() == 10;
     }
 
     match /consultations/{consultationId} {
@@ -110,13 +117,10 @@ service cloud.firestore {
       );
       allow create: if isEmailVerified() && isValidConsultation(incoming());
       allow update: if isSignedIn() && (
-        // Admin can update anything
         isAdmin() ||
-        // User/Lawyer can only update status or specific fields
         (
           (resource.data.clientId == request.auth.uid || resource.data.lawyerId == request.auth.uid) &&
-          incoming().diff(existing()).affectedKeys().hasOnly(['status', 'meetingLink', 'meetingType']) &&
-          existing().status != 'completed' && existing().status != 'cancelled'
+          incoming().diff(existing()).affectedKeys().hasOnly(['status', 'meetingLink', 'meetingType', 'scheduledAt'])
         )
       );
     }
@@ -176,9 +180,16 @@ service cloud.firestore {
     // ==========================================
     // COLLECTION: USAGE STATS
     // ==========================================
+    function isValidUsageStat(data) {
+      return data.type in ['gemini_query', 'legal_search', 'document_generation', 'support_query'] &&
+             data.status in ['success', 'error'] &&
+             data.timestamp == request.time &&
+             (data.userId == request.auth.uid || data.userId == 'anonymous');
+    }
+
     match /usage_stats/{statId} {
       allow read: if isAdmin();
-      allow create: if isSignedIn();
+      allow create: if isSignedIn() && isValidUsageStat(incoming());
       allow update, delete: if false;
     }
 

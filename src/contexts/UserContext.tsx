@@ -34,6 +34,10 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const authorized = authSnap.exists();
         setIsAuthorized(authorized);
 
+        import('../services/cleanupService').then(({ cleanupOldConversations }) => {
+          cleanupOldConversations(user.uid);
+        });
+
         const profile = await getLawyerByUserId(user.uid);
         
         if (authorized || profile) {

@@ -15,6 +15,7 @@ export default function History() {
   const [conversations, setConversations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [showArchived, setShowArchived] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -27,19 +28,31 @@ export default function History() {
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({
+      const data: any[] = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
         createdAt: doc.data().createdAt?.toDate() || new Date()
       }));
       setConversations(data);
       setLoading(false);
+      
+      // Clear selection if not in current view
+      if (selectedId) {
+        const item = data.find(d => d.id === selectedId);
+        if (!item || !!item.isArchived !== showArchived) {
+          setSelectedId(null);
+        }
+      }
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, path);
     });
 
     return () => unsubscribe();
-  }, [user]);
+  }, [user, showArchived]); // Added showArchived dependency for clear selection
+
+  const activeConversations = conversations.filter(c => !c.isArchived);
+  const archivedConversations = conversations.filter(c => c.isArchived);
+  const displayConversations = showArchived ? archivedConversations : activeConversations;
 
   const selectedChat = conversations.find(c => c.id === selectedId);
 
@@ -83,9 +96,29 @@ export default function History() {
             </div>
             <span className="text-[10px] font-black text-accent-gold uppercase tracking-[0.3em]">{t("secureRecords") || "Secure Records"}</span>
           </div>
-          <h2 className="text-3xl font-black text-prestige-900 tracking-tighter leading-none">
+          <h2 className="text-3xl font-black text-prestige-900 tracking-tighter leading-none mb-6">
             {t("legalHistory") || "Legal History"}
           </h2>
+          <div className="flex gap-2 p-1 bg-prestige-50 rounded-xl border border-prestige-100">
+            <button 
+              onClick={() => setShowArchived(false)}
+              className={cn(
+                "flex-1 py-2 text-xs font-black uppercase tracking-widest rounded-lg transition-all",
+                !showArchived ? "bg-white text-prestige-950 shadow-sm border border-prestige-200" : "text-prestige-400 hover:text-prestige-600"
+              )}
+            >
+              Active
+            </button>
+            <button 
+              onClick={() => setShowArchived(true)}
+              className={cn(
+                "flex-1 py-2 text-xs font-black uppercase tracking-widest rounded-lg transition-all",
+                showArchived ? "bg-white text-prestige-950 shadow-sm border border-prestige-200" : "text-prestige-400 hover:text-prestige-600"
+              )}
+            >
+              Archived
+            </button>
+          </div>
         </div>
         
         <div className="flex-1 overflow-y-auto p-4 space-y-2">
@@ -95,13 +128,13 @@ export default function History() {
                 <div key={i} className="h-24 bg-prestige-50 rounded-[2rem] animate-pulse" />
               ))}
             </div>
-          ) : conversations.length === 0 ? (
+          ) : displayConversations.length === 0 ? (
             <div className="p-12 text-center space-y-4 bg-white rounded-[2rem] border border-dashed border-prestige-100">
               <MessageSquare className="w-12 h-12 text-prestige-100 mx-auto" />
               <p className="text-sm text-prestige-400 font-bold uppercase tracking-widest">{t("noHistoryFound") || "No history found"}</p>
             </div>
           ) : (
-            conversations.map((chat) => (
+            displayConversations.map((chat) => (
               <button
                 key={chat.id}
                 onClick={() => setSelectedId(chat.id)}
