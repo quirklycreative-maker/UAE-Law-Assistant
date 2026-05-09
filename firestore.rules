@@ -76,14 +76,57 @@ service cloud.firestore {
     // ==========================================
     // COLLECTION: LAWYERS (Public Profiles)
     // ==========================================
+    function isValidLawyer(data) {
+      return data.name is string && data.name.size() <= 200 &&
+             data.specialization is string && data.specialization.size() <= 200 &&
+             data.price is number;
+    }
+
     match /lawyers/{lawyerId} {
-      allow read: if true;
-      allow create: if isAdmin(); // Only admins or verification process can create confirmed profile
+      allow get: if true;
+      allow list: if true;
+      allow create: if isAdmin() || (isOwner(lawyerId) && isValidLawyer(incoming()));
       allow update: if isAdmin() || (
         isOwner(lawyerId) && 
-        incoming().diff(existing()).affectedKeys().hasOnly(['workingHours', 'offDays', 'isOOO', 'updatedAt']) &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['workingHours', 'offDays', 'isOOO', 'updatedAt', 'name', 'specialization', 'price', 'bio']) &&
         incoming().updatedAt == request.time
       );
+    }
+
+    // ==========================================
+    // COLLECTION: CLIENTS
+    // ==========================================
+    function isValidClient(data) {
+      return data.lawyerId == request.auth.uid &&
+             data.name is string && data.name.size() <= 100 &&
+             (data.email == null || (data.email is string && data.email.size() <= 200)) &&
+             data.keys().hasAll(['lawyerId', 'name']);
+    }
+
+    match /clients/{clientId} {
+      allow read: if isSignedIn() && (resource.data.lawyerId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && isValidClient(incoming());
+      allow update: if isSignedIn() && (resource.data.lawyerId == request.auth.uid || isAdmin()) && isValidClient(incoming());
+      allow delete: if isSignedIn() && (resource.data.lawyerId == request.auth.uid || isAdmin());
+    }
+
+    // ==========================================
+    // COLLECTION: CASES
+    // ==========================================
+    function isValidCase(data) {
+      return data.lawyerId == request.auth.uid &&
+             data.clientId is string &&
+             data.title is string && data.title.size() <= 200 &&
+             data.status in ['active', 'closed'] &&
+             data.createdAt is string &&
+             data.keys().hasAll(['lawyerId', 'clientId', 'title', 'status', 'createdAt']);
+    }
+
+    match /cases/{caseId} {
+      allow read: if isSignedIn() && (resource.data.lawyerId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && isValidCase(incoming());
+      allow update: if isSignedIn() && (resource.data.lawyerId == request.auth.uid || isAdmin()) && isValidCase(incoming());
+      allow delete: if isSignedIn() && (resource.data.lawyerId == request.auth.uid || isAdmin());
     }
 
     // ==========================================

@@ -25,18 +25,30 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     setIsToggleLoading(false);
   };
 
-  const navItems = [
-    { name: t("home"), path: "/", icon: MessageSquare },
-    { name: t("assistant"), path: "/assistant", icon: Zap },
-    { name: t("findLawyer"), path: "/lawyers", icon: Users },
-    { name: t("myBookings"), path: "/appointments", icon: Calendar },
-  ];
+  const navItems = lawyerProfile 
+    ? [
+        { name: t("workspaceHome") || "Dashboard", path: "/dashboard", icon: MessageSquare },
+        { name: t("researchCopilot") || "Research", path: "/copilot", icon: ShieldCheck },
+        { name: t("legislation"), path: "/laws", icon: Search },
+        { name: t("history"), path: "/history", icon: Scale },
+      ]
+    : [
+        { name: t("home"), path: "/", icon: MessageSquare },
+        { name: t("assistant"), path: "/assistant", icon: Zap },
+        { name: t("findLawyer"), path: "/lawyers", icon: Users },
+        { name: t("myBookings"), path: "/appointments", icon: Calendar },
+      ];
 
-  const secondaryNavItems = [
-    { name: t("legislation"), path: "/laws", icon: Search },
-    { name: t("history"), path: "/history", icon: Scale },
-    ...(isSuperAdmin ? [{ name: t("admin"), path: "/management", icon: ShieldCheck }] : []),
-  ];
+  const secondaryNavItems = lawyerProfile
+    ? [
+        { name: t("settings") || "Settings", path: "/settings", icon: Calendar }, // Scheduling/Availability in settings
+        ...(isSuperAdmin ? [{ name: t("admin"), path: "/management", icon: ShieldCheck }] : []),
+      ]
+    : [
+        { name: t("legislation"), path: "/laws", icon: Search },
+        { name: t("history"), path: "/history", icon: Scale },
+        ...(isSuperAdmin ? [{ name: t("admin"), path: "/management", icon: ShieldCheck }] : []),
+      ];
 
   const handleLogin = async () => {
     if (isAuthActionLoading) return;
@@ -148,10 +160,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   <div className="flex items-center gap-2 justify-end mb-0.5">
                     {lawyerProfile && (
                       <>
-                        <Link to="/lawyer/dashboard" className="text-[9px] font-black bg-accent-gold/10 text-accent-gold px-2 py-0.5 rounded border border-accent-gold/20 hover:bg-accent-gold hover:text-prestige-950 transition-colors uppercase tracking-widest leading-none">
+                        <Link to="/dashboard" className="text-[9px] font-black bg-accent-gold/10 text-accent-gold px-2 py-0.5 rounded border border-accent-gold/20 hover:bg-accent-gold hover:text-prestige-950 transition-colors uppercase tracking-widest leading-none">
                           Dashboard
                         </Link>
-                        <Link to="/lawyer/assistant" className="text-[9px] font-black bg-accent-indigo/10 text-accent-indigo px-2 py-0.5 rounded border border-accent-indigo/20 hover:bg-accent-indigo hover:text-white transition-colors uppercase tracking-widest leading-none">
+                        <Link to="/copilot" className="text-[9px] font-black bg-accent-indigo/10 text-accent-indigo px-2 py-0.5 rounded border border-accent-indigo/20 hover:bg-accent-indigo hover:text-white transition-colors uppercase tracking-widest leading-none">
                           Co-pilot
                         </Link>
                       </>
@@ -241,10 +253,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                             <p className="text-sm font-bold text-prestige-900">{user.displayName}</p>
                     {lawyerProfile && (
                               <>
-                                <Link to="/lawyer/dashboard" onClick={() => setIsMobileMenuOpen(false)} className="text-[8px] font-black bg-accent-gold/10 text-accent-gold px-1.5 py-0.5 rounded border border-accent-gold/20 uppercase">
+                                <Link to="/dashboard" onClick={() => setIsMobileMenuOpen(false)} className="text-[8px] font-black bg-accent-gold/10 text-accent-gold px-1.5 py-0.5 rounded border border-accent-gold/20 uppercase">
                                   Dashboard
                                 </Link>
-                                <Link to="/lawyer/assistant" onClick={() => setIsMobileMenuOpen(false)} className="text-[8px] font-black bg-accent-indigo/10 text-accent-indigo px-1.5 py-0.5 rounded border border-accent-indigo/20 uppercase">
+                                <Link to="/copilot" onClick={() => setIsMobileMenuOpen(false)} className="text-[8px] font-black bg-accent-indigo/10 text-accent-indigo px-1.5 py-0.5 rounded border border-accent-indigo/20 uppercase">
                                   Co-pilot
                                 </Link>
                               </>

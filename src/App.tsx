@@ -26,11 +26,20 @@ import Management from "./pages/Management";
 import Support from "./pages/Support";
 import Legislation from "./pages/Legislation";
 
+import LawyerSettings from "./pages/LawyerSettings";
+
 function Home() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
-  const { user, lawyerProfile } = useUser();
+  const { user, lawyerProfile, loading } = useUser();
   const { t, isRtl } = useLanguage();
+
+  // Redirect lawyers to dashboard automatically
+  useEffect(() => {
+    if (!loading && user && lawyerProfile) {
+      navigate("/dashboard");
+    }
+  }, [user, lawyerProfile, loading, navigate]);
 
   return (
     <div className="space-y-32 pb-32">
@@ -579,19 +588,21 @@ function Assistant() {
 
       // Save to Firestore if logged in
       if (user) {
-        const chatData = {
+        const baseData = {
           userId: user.uid,
           messages: [...messages, { role: 'user', text: userMessage, timestamp: now }, { role: 'model', text: advice, timestamp: assistantNow }],
           updatedAt: serverTimestamp(),
-          createdAt: currentChatId ? undefined : serverTimestamp()
         };
 
         const path = "ai_conversations";
         try {
           if (currentChatId) {
-            await updateDoc(doc(db, path, currentChatId), chatData);
+            await updateDoc(doc(db, path, currentChatId), baseData);
           } else {
-            const docRef = await addDoc(collection(db, path), chatData);
+            const docRef = await addDoc(collection(db, path), {
+              ...baseData,
+              createdAt: serverTimestamp()
+            });
             setCurrentChatId(docRef.id);
           }
         } catch (err) {
@@ -1535,11 +1546,14 @@ export default function App() {
             <Route path="/lawyers" element={<Lawyers />} />
             <Route path="/lawyers/:id" element={<LawyerProfile />} />
             <Route path="/register-lawyer" element={<LawyerRegistration />} />
-            <Route path="/lawyer/dashboard" element={
+            <Route path="/dashboard" element={
               <ProtectedRoute requireLawyer><LawyerDashboard /></ProtectedRoute>
             } />
-            <Route path="/lawyer/assistant" element={
+            <Route path="/copilot" element={
               <ProtectedRoute requireLawyer><LawyerAssistant /></ProtectedRoute>
+            } />
+            <Route path="/settings" element={
+              <ProtectedRoute requireLawyer><LawyerSettings /></ProtectedRoute>
             } />
             <Route path="/management" element={
               <ProtectedRoute requireAdmin><Management /></ProtectedRoute>

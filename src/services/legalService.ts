@@ -1,4 +1,4 @@
-import { ai, MODELS } from "../lib/gemini";
+import { MODELS, generateGeminiContent } from "../lib/gemini";
 import { logUsage } from "../lib/usage";
 
 const SYSTEM_INSTRUCTION = `You are a concise UAE Legal AI Advisor for consumers. 
@@ -50,45 +50,22 @@ export async function getLawyerCoPilotAdvice(
     ${context}` : "Note: Rely on your internal advanced knowledge of UAE Law systems."}`;
 
   try {
-    try {
-      const response = await ai.models.generateContent({
-        model: MODELS.pro,
-        contents: [
-          ...history.map(m => ({ role: m.role as "user" | "model", parts: [{ text: m.text }] })),
-          { role: "user", parts: [{ text: userPrompt }] }
-        ],
-        config: {
-          systemInstruction: augmentedInstruction,
-          temperature: 0.3,
-        },
-      });
+    const text = await generateGeminiContent({
+      model: MODELS.pro,
+      contents: [
+        ...history.map(m => ({ role: m.role as "user" | "model", parts: [{ text: m.text }] })),
+        { role: "user", parts: [{ text: userPrompt }] }
+      ],
+      systemInstruction: augmentedInstruction,
+      generationConfig: {
+        temperature: 0.3,
+      },
+      usageLabel: 'gemini_query'
+    });
 
-      logUsage('gemini_query', 'success', 0);
-      return response.text || "I'm sorry, I couldn't generate a technical response.";
-    } catch (proError: any) {
-      // If Pro is unavailable (503), fallback to Flash
-      const errorStr = JSON.stringify(proError);
-      if (proError?.status === 503 || errorStr.includes("503") || errorStr.includes("UNAVAILABLE")) {
-        console.warn("Gemini Pro unavailable, falling back to Flash");
-        const fallbackResponse = await ai.models.generateContent({
-          model: MODELS.flash,
-          contents: [
-            ...history.map(m => ({ role: m.role as "user" | "model", parts: [{ text: m.text }] })),
-            { role: "user", parts: [{ text: userPrompt }] }
-          ],
-          config: {
-            systemInstruction: augmentedInstruction,
-            temperature: 0.3,
-          },
-        });
-        logUsage('gemini_query', 'success', 0);
-        return fallbackResponse.text || "I'm sorry, I couldn't generate a technical response (fallback).";
-      }
-      throw proError;
-    }
+    return text || "I'm sorry, I couldn't generate a technical response.";
   } catch (error) {
     console.error("Gemini Technical Error:", error);
-    logUsage('gemini_query', 'error');
     return "Error: Technical co-pilot bridge failed.";
   }
 }
@@ -119,26 +96,24 @@ export async function getLegalAdvice(
       });
     }
 
-    const response = await ai.models.generateContent({
+    const text = await generateGeminiContent({
       model: MODELS.flash,
       contents: [
         ...history.map(m => ({ role: m.role as "user" | "model", parts: [{ text: m.text }] })),
         { role: "user", parts: userParts }
       ],
-      config: {
-        systemInstruction: augmentedInstruction,
+      systemInstruction: augmentedInstruction,
+      generationConfig: {
         temperature: 0.7,
       },
+      usageLabel: 'gemini_query'
     });
 
-    logUsage('gemini_query', 'success', 0);
-
-    return response.text || "I'm sorry, I couldn't generate a response at this time.";
+    return text || "I'm sorry, I couldn't generate a response at this time.";
   } catch (error: any) {
     console.error("Gemini API Error:", error);
-    logUsage('gemini_query', 'error');
     
-    const errorStr = JSON.stringify(error);
+    const errorStr = JSON.stringify(error).toUpperCase();
     if (error?.status === 503 || errorStr.includes("503") || errorStr.includes("UNAVAILABLE")) {
       return "The AI service is currently experiencing high demand or is temporarily unavailable (503). Please try again in a few moments.";
     }

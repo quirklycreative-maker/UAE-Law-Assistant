@@ -1,6 +1,6 @@
 {
-  "name": "Huqiqiyy UAE Legal AI",
-  "description": "Premium AI-powered legal research and consultation platform for UAE legislation. Secure access to federal laws, expert lawyers, and automated legal analysis.",
+  "name": "Huqiqiyy Lawyer Co-pilot",
+  "description": "A comprehensive daily legal workspace for UAE lawyers to manage cases, research laws with AI, and organize clients efficiently.",
   "requestFramePermissions": [
     "camera",
     "microphone"

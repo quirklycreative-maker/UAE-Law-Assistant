@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { MessageSquare, Send, Bot, User, Loader2, ShieldAlert, CheckCircle2, LifeBuoy } from "lucide-react";
 import { auth, db, handleFirestoreError, OperationType } from "../lib/firebase";
 import { collection, addDoc, query, where, orderBy, onSnapshot, updateDoc, doc, serverTimestamp } from "firebase/firestore";
-import { ai, MODELS } from "../lib/gemini";
+import { MODELS, generateGeminiContent } from "../lib/gemini";
 import { logUsage } from "../lib/usage";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "../lib/utils";
@@ -125,27 +125,30 @@ export default function Support() {
 
       // Call AI
       const prompt = SYSTEM_PROMPT.replace("{{ROLE}}", currentRole);
-      const history = messages.map(m => ({
-        role: m.role,
-        parts: [{ text: m.content }]
-      }));
+      const history = messages
+        .filter(m => m.role === "user" || m.role === "model")
+        .map(m => ({
+          role: m.role as "user" | "model",
+          parts: [{ text: m.content }]
+        }));
 
-      const response = await ai.models.generateContent({
+      const aiText = await generateGeminiContent({
         model: MODELS.flash,
         contents: [
           ...history,
           { role: "user", parts: [{ text: input }] }
         ],
-        config: {
-          systemInstruction: prompt,
+        systemInstruction: prompt,
+        generationConfig: {
           temperature: 0.7
-        }
+        },
+        usageLabel: 'support_query'
       });
 
-      const aiText = response.text || "I'm sorry, I'm having trouble processing that right now. Please try again or wait for an admin to assist.";
+      if (!aiText) {
+        throw new Error("Empty response from Gemini");
+      }
       
-      logUsage('support_query', 'success');
-
       const aiMessage: Message = {
         role: "model",
         content: aiText,

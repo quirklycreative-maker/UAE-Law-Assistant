@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { collection, query, where, orderBy, onSnapshot } from "firebase/firestore";
+import { collection, query, where, orderBy, onSnapshot, getDocs } from "firebase/firestore";
 import { auth, db, handleFirestoreError, OperationType, signInWithGoogle } from "../lib/firebase";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { motion, AnimatePresence } from "motion/react";
@@ -16,22 +16,44 @@ export default function History() {
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showArchived, setShowArchived] = useState(false);
+  const [activeTab, setActiveTab] = useState<"client" | "technical">("client");
+  const [cases, setCases] = useState<Record<string, string>>({}); // id -> title mapping
 
   useEffect(() => {
     if (!user) return;
 
-    const path = "ai_conversations";
+    // Determine path based on activeTab
+    const path = activeTab === "client" ? "ai_conversations" : "lawyer_co_pilots";
+    
+    // We'll also fetch cases if it's the technical tab to map titles
+    if (activeTab === "technical") {
+      const fetchCases = async () => {
+        try {
+          const q = query(collection(db, "cases"), where("lawyerId", "==", user.uid));
+          const snap = await getDocs(q);
+          const caseMap: Record<string, string> = {};
+          snap.docs.forEach(doc => {
+            caseMap[doc.id] = doc.data().title;
+          });
+          setCases(caseMap);
+        } catch (err) {
+          console.error("Error fetching cases for history:", err);
+        }
+      };
+      fetchCases();
+    }
+
     const q = query(
       collection(db, path),
       where("userId", "==", user.uid),
-      orderBy("createdAt", "desc")
+      orderBy("updatedAt", "desc")
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const data: any[] = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate() || new Date()
+        createdAt: doc.data().createdAt?.toDate() || doc.data().updatedAt?.toDate() || new Date()
       }));
       setConversations(data);
       setLoading(false);
@@ -48,7 +70,7 @@ export default function History() {
     });
 
     return () => unsubscribe();
-  }, [user, showArchived]); // Added showArchived dependency for clear selection
+  }, [user, showArchived, activeTab]);
 
   const activeConversations = conversations.filter(c => !c.isArchived);
   const archivedConversations = conversations.filter(c => c.isArchived);
@@ -99,25 +121,49 @@ export default function History() {
           <h2 className="text-3xl font-black text-prestige-900 tracking-tighter leading-none mb-6">
             {t("legalHistory") || "Legal History"}
           </h2>
-          <div className="flex gap-2 p-1 bg-prestige-50 rounded-xl border border-prestige-100">
-            <button 
-              onClick={() => setShowArchived(false)}
-              className={cn(
-                "flex-1 py-2 text-xs font-black uppercase tracking-widest rounded-lg transition-all",
-                !showArchived ? "bg-white text-prestige-950 shadow-sm border border-prestige-200" : "text-prestige-400 hover:text-prestige-600"
-              )}
-            >
-              Active
-            </button>
-            <button 
-              onClick={() => setShowArchived(true)}
-              className={cn(
-                "flex-1 py-2 text-xs font-black uppercase tracking-widest rounded-lg transition-all",
-                showArchived ? "bg-white text-prestige-950 shadow-sm border border-prestige-200" : "text-prestige-400 hover:text-prestige-600"
-              )}
-            >
-              Archived
-            </button>
+          
+          <div className="flex flex-col gap-4">
+            <div className="flex gap-2 p-1 bg-prestige-50 rounded-xl border border-prestige-100">
+              <button 
+                onClick={() => { setActiveTab("client"); setSelectedId(null); }}
+                className={cn(
+                  "flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all",
+                  activeTab === "client" ? "bg-white text-prestige-950 shadow-sm border border-prestige-200" : "text-prestige-400 hover:text-prestige-600"
+                )}
+              >
+                Client Chats
+              </button>
+              <button 
+                onClick={() => { setActiveTab("technical"); setSelectedId(null); }}
+                className={cn(
+                  "flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all",
+                  activeTab === "technical" ? "bg-white text-prestige-950 shadow-sm border border-prestige-200" : "text-prestige-400 hover:text-prestige-600"
+                )}
+              >
+                Lawyer Co-Pilot
+              </button>
+            </div>
+
+            <div className="flex gap-2 p-1 bg-prestige-50 rounded-xl border border-prestige-100">
+              <button 
+                onClick={() => setShowArchived(false)}
+                className={cn(
+                  "flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all",
+                  !showArchived ? "bg-white text-prestige-950 shadow-sm border border-prestige-200" : "text-prestige-400 hover:text-prestige-600"
+                )}
+              >
+                Active
+              </button>
+              <button 
+                onClick={() => setShowArchived(true)}
+                className={cn(
+                  "flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all",
+                  showArchived ? "bg-white text-prestige-950 shadow-sm border border-prestige-200" : "text-prestige-400 hover:text-prestige-600"
+                )}
+              >
+                Archived
+              </button>
+            </div>
           </div>
         </div>
         
@@ -198,7 +244,13 @@ export default function History() {
                     <ChevronRight className={cn("w-6 h-6", isRtl ? "rotate-0" : "rotate-180")} />
                   </button>
                   <div className={cn(isRtl ? "text-right" : "text-left")}>
-                    <h3 className="text-2xl font-black text-prestige-950 tracking-tighter">{t("caseAnalysisArchive") || "Case Analysis Archive"}</h3>
+                    <h3 className="text-2xl font-black text-prestige-950 tracking-tighter">
+                      {activeTab === "technical" && selectedChat.caseId ? (
+                        <>Case: <span className="text-accent-gold">{cases[selectedChat.caseId] || "Technical Session"}</span></>
+                      ) : (
+                        t("caseAnalysisArchive") || "Case Analysis Archive"
+                      )}
+                    </h3>
                     <p className="text-xs text-prestige-400 font-bold uppercase tracking-widest mt-1">
                        {t("recordedOn") || "Session ID"} • {format(selectedChat.createdAt, 'MMMM do, yyyy')}
                     </p>
