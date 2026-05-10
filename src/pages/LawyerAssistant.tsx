@@ -20,17 +20,17 @@ import {
   Paperclip,
   Image as ImageIcon
 } from "lucide-react";
-import { motion, AnimatePresence } from "motion/react";
+import { motion, AnimatePresence } from "../lib/motion-shim";
 import { getLawyerCoPilotAdvice } from "../services/legalService";
 import { searchLocalLegislation, formatLawsForContext } from "../services/legislationService";
 import { searchPrecedents, Precedent } from "../services/precedentService";
 import ReactMarkdown from "react-markdown";
 import { cn } from "../lib/utils";
-import { useAuthState } from "react-firebase-hooks/auth";
-import { auth, db, handleFirestoreError, OperationType } from "../lib/firebase";
+import { db, handleFirestoreError, OperationType } from "../lib/firebase";
 import { collection, addDoc, query, where, orderBy, serverTimestamp, updateDoc, doc, getDocs, limit } from "firebase/firestore";
 import { useLanguage } from "../contexts/LanguageContext";
 import { extractTextFromPdf } from "../lib/pdfUtils";
+import { useUser } from "../contexts/UserContext";
 
 interface Client {
   id: string;
@@ -50,7 +50,7 @@ export default function LawyerAssistant() {
   const [isLoading, setIsLoading] = useState(false);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [user] = useAuthState(auth);
+  const { user } = useUser();
   const isSending = useRef(false);
 
   // Client/Case Management State

@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from "react";
-import { auth, db } from "../lib/firebase";
+import { db } from "../lib/firebase";
 import { collection, getDocs, setDoc, deleteDoc, doc, query, orderBy, onSnapshot, where } from "firebase/firestore";
-import { useAuthState } from "react-firebase-hooks/auth";
 import { Users, UserPlus, Trash2, ShieldCheck, Mail, Calendar, Loader2, LifeBuoy, MessageSquare, Clock, ArrowRight, ExternalLink, Activity, BarChart3, TrendingUp, Zap, Search } from "lucide-react";
-import { motion, AnimatePresence } from "motion/react";
+import { motion, AnimatePresence } from "../lib/motion-shim";
 import { cn } from "../lib/utils";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, Cell, PieChart, Pie } from "recharts";
 import { format, subDays, startOfDay } from "date-fns";
 
 import { useLanguage } from "../contexts/LanguageContext";
+import { useUser } from "../contexts/UserContext";
+import { getLocalUsageStats } from "../lib/usage";
 
 interface AuthorizedLawyer {
   email: string;
@@ -30,14 +31,19 @@ interface UsageStat {
   type: string;
   status: string;
   tokens: number;
+  totalTokens?: number;
+  inputTokens?: number;
+  outputTokens?: number;
+  model?: string | null;
+  utilizationPct?: number | null;
+  usageStage?: string | null;
   userId: string;
   timestamp: any;
 }
 
 export default function Management() {
-  const [user] = useAuthState(auth);
+  const { user, isSuperAdmin } = useUser();
   const { t, isRtl } = useLanguage();
-  const isSuperAdmin = user?.email === "universe.24.369@gmail.com";
   
   const [activeTab, setActiveTab] = useState<"lawyers" | "support" | "system">("lawyers");
   const [lawyers, setLawyers] = useState<AuthorizedLawyer[]>([]);
@@ -47,6 +53,21 @@ export default function Management() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [viewingSession, setViewingSession] = useState<SupportSession | null>(null);
+
+  const openRouterStats = usageStats.filter((stat) => stat.type === "openrouter_query");
+  const totalOpenRouterTokens = openRouterStats.reduce((sum, stat) => sum + (stat.totalTokens ?? stat.tokens ?? 0), 0);
+  const totalOpenRouterRequests = openRouterStats.length;
+  const tokenLimit = Number(import.meta.env.VITE_OPENROUTER_TOKEN_LIMIT || 1000000);
+  const warningThresholdPct = Number(import.meta.env.VITE_OPENROUTER_WARNING_PCT || 90);
+  const tokenUtilizationPct = tokenLimit > 0 ? (totalOpenRouterTokens / tokenLimit) * 100 : 0;
+  const isNearLimit = tokenUtilizationPct >= warningThresholdPct;
+  const isOverLimit = tokenUtilizationPct >= 100;
+  const averageTokens = totalOpenRouterRequests > 0 ? Math.round(totalOpenRouterTokens / totalOpenRouterRequests) : 0;
+  const modelCounts = openRouterStats.reduce<Record<string, number>>((acc, stat) => {
+    const model = stat.model || "unknown";
+    acc[model] = (acc[model] || 0) + 1;
+    return acc;
+  }, {});
 
   useEffect(() => {
     if (isSuperAdmin) {
@@ -74,9 +95,18 @@ export default function Management() {
         id: doc.id,
         ...doc.data()
       })) as UsageStat[];
-      setUsageStats(list);
+      const localStats = getLocalUsageStats();
+      const merged = [...list, ...localStats].reduce<UsageStat[]>((acc, entry) => {
+        if (!acc.some(item => item.id === entry.id)) {
+          acc.push(entry);
+        }
+        return acc;
+      }, []);
+      setUsageStats(merged);
     } catch (err) {
       console.error("Error fetching usage stats:", err);
+      const localStats = getLocalUsageStats();
+      setUsageStats(localStats);
     } finally {
       setIsLoading(false);
     }
@@ -368,7 +398,7 @@ export default function Management() {
                           m.role === "user" ? "ml-auto items-end" : "items-start"
                         )}>
                           <span className="text-[10px] font-black uppercase tracking-widest text-prestige-400">
-                            {m.role === "user" ? t("user") || "User" : t("aiAssistant") || "AI Assistant"}
+                            {m.role === "user" ? t("user") || "User" : t("aiAssistant") || "Copilot"}
                           </span>
                           <div className={cn(
                             "p-4 rounded-2xl text-sm font-medium",
@@ -387,12 +417,76 @@ export default function Management() {
             </div>
           ) : (
             <div className="space-y-12">
+               <div className={cn(
+                 "bg-white p-8 rounded-[2.5rem] border shadow-xl shadow-prestige-900/5",
+                 isOverLimit ? "border-rose-200" : isNearLimit ? "border-amber-200" : "border-prestige-100"
+               )}>
+                 <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-8">
+                   <div className="space-y-4 flex-1">
+                     <div className="flex items-center gap-3">
+                       <div className={cn(
+                         "w-11 h-11 rounded-2xl flex items-center justify-center",
+                         isOverLimit ? "bg-rose-50 text-rose-600" : isNearLimit ? "bg-amber-50 text-amber-600" : "bg-emerald-50 text-emerald-600"
+                       )}>
+                         <Zap className="w-5 h-5" />
+                       </div>
+                       <div>
+                         <h3 className="text-xl font-black text-prestige-950 tracking-tight">OpenRouter Token Monitor</h3>
+                         <p className="text-[10px] font-bold text-prestige-400 uppercase tracking-widest">Live quota and model routing</p>
+                       </div>
+                     </div>
+                     <div className="space-y-2">
+                       <div className="flex items-center justify-between text-xs font-bold uppercase tracking-widest text-prestige-400">
+                         <span>Usage</span>
+                         <span>{tokenUtilizationPct.toFixed(1)}% of {tokenLimit.toLocaleString()} tokens</span>
+                       </div>
+                       <div className="h-3 rounded-full bg-prestige-100 overflow-hidden">
+                         <div
+                           className={cn(
+                             "h-full rounded-full transition-all",
+                             isOverLimit ? "bg-rose-500" : isNearLimit ? "bg-amber-500" : "bg-emerald-500"
+                           )}
+                           style={{ width: `${Math.min(tokenUtilizationPct, 100)}%` }}
+                         />
+                       </div>
+                     </div>
+                     <p className={cn(
+                       "text-sm font-medium leading-relaxed max-w-3xl",
+                       isOverLimit ? "text-rose-700" : isNearLimit ? "text-amber-700" : "text-prestige-500"
+                     )}>
+                       {isOverLimit
+                         ? "The current token budget is exhausted. New requests should fall back to the free/emergency model until the quota is reset."
+                         : isNearLimit
+                           ? "We are at the 90% warning band. The app is now prioritizing the fallback model before the free tier is exhausted."
+                           : "The primary model is still active. The app will automatically degrade to the fallback model once the warning threshold is crossed."
+                       }
+                     </p>
+                   </div>
+                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 lg:min-w-[420px]">
+                     <div className="p-4 rounded-2xl bg-prestige-50 border border-prestige-100">
+                       <p className="text-[10px] font-black uppercase tracking-widest text-prestige-400 mb-2">Requests</p>
+                       <p className="text-2xl font-black text-prestige-950">{totalOpenRouterRequests}</p>
+                     </div>
+                     <div className="p-4 rounded-2xl bg-prestige-50 border border-prestige-100">
+                       <p className="text-[10px] font-black uppercase tracking-widest text-prestige-400 mb-2">Tokens</p>
+                       <p className="text-2xl font-black text-prestige-950">{totalOpenRouterTokens.toLocaleString()}</p>
+                     </div>
+                     <div className="p-4 rounded-2xl bg-prestige-50 border border-prestige-100">
+                       <p className="text-[10px] font-black uppercase tracking-widest text-prestige-400 mb-2">Avg / Req</p>
+                       <p className="text-2xl font-black text-prestige-950">{averageTokens.toLocaleString()}</p>
+                     </div>
+                   </div>
+                 </div>
+               </div>
+
                {/* Analytics Grid */}
-               <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+               <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
                  {[
                     { label: t("totalRequests"), value: usageStats.length, color: "text-accent-indigo", icon: Activity },
                     { label: t("successRate"), value: usageStats.length > 0 ? `${((usageStats.filter(s => s.status === 'success').length / usageStats.length) * 100).toFixed(1)}%` : "N/A", color: "text-emerald-500", icon: TrendingUp },
-                    { label: "Gemini AI", value: usageStats.filter(s => s.type === 'gemini_query').length, color: "text-accent-gold", icon: Zap },
+                    { label: "OpenRouter AI", value: totalOpenRouterRequests, color: "text-accent-gold", icon: Zap },
+                    { label: "Token Usage", value: `${tokenUtilizationPct.toFixed(1)}%`, color: isOverLimit ? "text-rose-500" : isNearLimit ? "text-amber-500" : "text-sky-500", icon: BarChart3 },
+                    { label: "Top Model", value: Object.entries(modelCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "N/A", color: "text-prestige-700", icon: Search },
                     { label: "Legal Searches", value: usageStats.filter(s => s.type === 'legal_search').length, color: "text-sky-500", icon: BarChart3 },
                  ].map((metric, i) => (
                    <motion.div
@@ -497,7 +591,7 @@ export default function Management() {
                          <ResponsiveContainer width="100%" height="100%">
                             <BarChart 
                               data={[
-                                { name: 'Gemini', value: usageStats.filter(s => s.type === 'gemini_query').length, fill: '#ef4444' },
+                                { name: 'OpenRouter', value: usageStats.filter(s => s.type === 'openrouter_query').length, fill: '#ef4444' },
                                 { name: 'Search', value: usageStats.filter(s => s.type === 'legal_search').length, fill: '#3b82f6' },
                                 { name: 'Support', value: usageStats.filter(s => s.type === 'support_query').length, fill: '#10b981' },
                               ]}
@@ -555,6 +649,7 @@ export default function Management() {
                       <thead>
                         <tr className="bg-prestige-50/50">
                           <th className="px-8 py-4 text-[10px] font-black text-prestige-400 uppercase tracking-widest text-start">Type</th>
+                          <th className="px-8 py-4 text-[10px] font-black text-prestige-400 uppercase tracking-widest text-start">Model / Tokens</th>
                           <th className="px-8 py-4 text-[10px] font-black text-prestige-400 uppercase tracking-widest text-start">Status</th>
                           <th className="px-8 py-4 text-[10px] font-black text-prestige-400 uppercase tracking-widest text-start">User ID</th>
                           <th className="px-8 py-4 text-[10px] font-black text-prestige-400 uppercase tracking-widest text-start">Timestamp</th>
@@ -567,11 +662,19 @@ export default function Management() {
                               <div className="flex items-center gap-3">
                                 <div className={cn(
                                   "w-8 h-8 rounded-lg flex items-center justify-center",
-                                  stat.type === 'gemini_query' ? "bg-accent-gold/10 text-accent-gold" : "bg-accent-indigo/10 text-accent-indigo"
+                                  stat.type === 'openrouter_query' ? "bg-accent-gold/10 text-accent-gold" : "bg-accent-indigo/10 text-accent-indigo"
                                 )}>
-                                  {stat.type === 'gemini_query' ? <Zap className="w-4 h-4" /> : <Search className="w-4 h-4" />}
+                                  {stat.type === 'openrouter_query' ? <Zap className="w-4 h-4" /> : <Search className="w-4 h-4" />}
                                 </div>
                                 <span className="text-xs font-bold text-prestige-900">{stat.type.replace('_', ' ').toUpperCase()}</span>
+                              </div>
+                            </td>
+                            <td className="px-8 py-4">
+                              <div className="space-y-1">
+                                <p className="text-xs font-black text-prestige-900 truncate max-w-[220px]">{stat.model || "—"}</p>
+                                <p className="text-[10px] font-bold text-prestige-400 uppercase tracking-widest">
+                                  {(stat.totalTokens ?? stat.tokens ?? 0).toLocaleString()} tokens
+                                </p>
                               </div>
                             </td>
                             <td className="px-8 py-4">
@@ -601,4 +704,3 @@ export default function Management() {
     </div>
   );
 }
-

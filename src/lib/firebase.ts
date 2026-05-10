@@ -1,36 +1,71 @@
 import { initializeApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from "firebase/auth";
 import { initializeFirestore, doc, getDocFromServer } from "firebase/firestore";
 import firebaseConfig from "../../firebase-applet-config.json";
+import { clearSessionUser, getSessionUser, setSessionUser } from "./session";
 
 const app = initializeApp(firebaseConfig);
 export const db = initializeFirestore(app, {
   experimentalForceLongPolling: true,
 }, firebaseConfig.firestoreDatabaseId);
-export const auth = getAuth(app);
-export const googleProvider = new GoogleAuthProvider();
 
-let isSigningIn = false;
+const DEMO_USER_KEY = "huqiqiyy_demo_user";
+export type DemoUser = {
+  uid: string;
+  email: string | null;
+  displayName: string;
+  emailVerified: boolean;
+  isAnonymous: boolean;
+  providerData: [];
+};
 
-export const signInWithGoogle = async () => {
-  if (isSigningIn) return;
-  isSigningIn = true;
+export const getDemoUser = (): DemoUser | null => {
   try {
-    const result = await signInWithPopup(auth, googleProvider);
-    return result;
-  } catch (error: any) {
-    // Handle auth/cancelled-popup-request gracefully
-    if (error.code === 'auth/cancelled-popup-request' || error.code === 'auth/popup-closed-by-user') {
-      console.log("Sign-in cancelled or popup closed");
-      return null;
-    }
-    console.error("Sign-in error:", error);
-    throw error;
-  } finally {
-    isSigningIn = false;
+    const raw = localStorage.getItem(DEMO_USER_KEY);
+    return raw ? JSON.parse(raw) as DemoUser : null;
+  } catch {
+    return null;
   }
 };
-export const logout = () => signOut(auth);
+
+const buildDemoUser = (email?: string | null): DemoUser => {
+  const safeEmail = email?.trim().toLowerCase() || "demo@huqiqiyy.local";
+  const name = safeEmail.includes("@") ? safeEmail.split("@")[0] : safeEmail;
+  return {
+    uid: `demo-${safeEmail.replace(/[^a-z0-9]/g, "-")}`,
+    email: safeEmail,
+    displayName: name.charAt(0).toUpperCase() + name.slice(1) || "Demo User",
+    emailVerified: true,
+    isAnonymous: true,
+    providerData: [],
+  };
+};
+
+export const startDemoSession = (email?: string | null) => {
+  const demoUser = buildDemoUser(email);
+  localStorage.setItem(DEMO_USER_KEY, JSON.stringify(demoUser));
+  setSessionUser(demoUser);
+  return demoUser;
+};
+
+export const clearDemoSession = () => {
+  localStorage.removeItem(DEMO_USER_KEY);
+  clearSessionUser();
+};
+
+export const signInWithGoogle = async () => {
+  if (!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY) {
+    const email = window.prompt("Enter your email to sign in for testing");
+    if (!email?.trim()) return;
+    startDemoSession(email);
+    window.dispatchEvent(new Event("huqiqiyy-demo-session-changed"));
+    return;
+  }
+  window.dispatchEvent(new Event("huqiqiyy-open-sign-in"));
+};
+export const logout = async () => {
+  clearDemoSession();
+  window.dispatchEvent(new Event("huqiqiyy-sign-out"));
+};
 
 export enum OperationType {
   CREATE = 'create',
@@ -59,18 +94,15 @@ interface FirestoreErrorInfo {
 }
 
 export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const sessionUser = getSessionUser();
   const errInfo: FirestoreErrorInfo = {
     error: error instanceof Error ? error.message : String(error),
     authInfo: {
-      userId: auth.currentUser?.uid,
-      email: auth.currentUser?.email,
-      emailVerified: auth.currentUser?.emailVerified,
-      isAnonymous: auth.currentUser?.isAnonymous,
-      tenantId: auth.currentUser?.tenantId,
-      providerInfo: auth.currentUser?.providerData?.map(provider => ({
-        providerId: provider.providerId,
-        email: provider.email,
-      })) || []
+      userId: sessionUser?.uid,
+      email: sessionUser?.email,
+      emailVerified: sessionUser?.emailVerified,
+      isAnonymous: sessionUser?.isAnonymous,
+      providerInfo: sessionUser?.providerData || []
     },
     operationType,
     path
@@ -84,8 +116,14 @@ async function testConnection() {
     await getDocFromServer(doc(db, "test", "connection"));
     console.log("Firebase connected successfully");
   } catch (error) {
-    if (error instanceof Error && error.message.includes("the client is offline")) {
-      console.error("Please check your Firebase configuration.");
+    if (error instanceof Error) {
+      const message = error.message.toLowerCase();
+      if (message.includes("the client is offline")) {
+        console.error("Please check your Firebase configuration.");
+      }
+      if (message.includes("permission-denied") || message.includes("missing or insufficient permissions")) {
+        console.warn("Firebase test connection was blocked by rules; continuing with local fallback.");
+      }
     }
   }
 }

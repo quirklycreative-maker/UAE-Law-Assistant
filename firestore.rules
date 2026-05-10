@@ -224,7 +224,7 @@ service cloud.firestore {
     // COLLECTION: USAGE STATS
     // ==========================================
     function isValidUsageStat(data) {
-      return data.type in ['gemini_query', 'legal_search', 'document_generation', 'support_query'] &&
+      return data.type in ['openrouter_query', 'legal_search', 'document_generation', 'support_query'] &&
              data.status in ['success', 'error'] &&
              data.timestamp == request.time &&
              (data.userId == request.auth.uid || data.userId == 'anonymous');

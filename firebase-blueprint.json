@@ -256,9 +256,15 @@
       "schema": {
         "type": "object",
         "properties": {
-          "type": { "type": "string", "enum": ["gemini_query", "legal_search", "document_generation", "support_query"] },
+          "type": { "type": "string", "enum": ["openrouter_query", "legal_search", "document_generation", "support_query"] },
           "userId": { "type": "string" },
           "tokens": { "type": "number" },
+          "totalTokens": { "type": "number" },
+          "inputTokens": { "type": "number" },
+          "outputTokens": { "type": "number" },
+          "model": { "type": ["string", "null"] },
+          "utilizationPct": { "type": ["number", "null"] },
+          "usageStage": { "type": ["string", "null"] },
           "timestamp": { "type": "string", "format": "date-time" },
           "status": { "type": "string", "enum": ["success", "error"] }
         },
