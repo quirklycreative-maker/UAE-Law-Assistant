@@ -1,14 +1,9 @@
-import { initializeApp } from "firebase/app";
-import { initializeFirestore, doc, getDocFromServer } from "firebase/firestore";
-import firebaseConfig from "../../firebase-applet-config.json";
 import { clearSessionUser, getSessionUser, setSessionUser } from "./session";
 
-const app = initializeApp(firebaseConfig);
-export const db = initializeFirestore(app, {
-  experimentalForceLongPolling: true,
-}, firebaseConfig.firestoreDatabaseId);
+export const db = {} as Record<string, never>;
 
 const DEMO_USER_KEY = "huqiqiyy_demo_user";
+
 export type DemoUser = {
   uid: string;
   email: string | null;
@@ -62,18 +57,19 @@ export const signInWithGoogle = async () => {
   }
   window.dispatchEvent(new Event("huqiqiyy-open-sign-in"));
 };
+
 export const logout = async () => {
   clearDemoSession();
   window.dispatchEvent(new Event("huqiqiyy-sign-out"));
 };
 
 export enum OperationType {
-  CREATE = 'create',
-  UPDATE = 'update',
-  DELETE = 'delete',
-  LIST = 'list',
-  GET = 'get',
-  WRITE = 'write',
+  CREATE = "create",
+  UPDATE = "update",
+  DELETE = "delete",
+  LIST = "list",
+  GET = "get",
+  WRITE = "write",
 }
 
 interface FirestoreErrorInfo {
@@ -90,7 +86,7 @@ interface FirestoreErrorInfo {
       providerId?: string | null;
       email?: string | null;
     }[];
-  }
+  };
 }
 
 export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
@@ -102,30 +98,11 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
       email: sessionUser?.email,
       emailVerified: sessionUser?.emailVerified,
       isAnonymous: sessionUser?.isAnonymous,
-      providerInfo: sessionUser?.providerData || []
+      providerInfo: sessionUser?.providerData || [],
     },
     operationType,
-    path
+    path,
   };
-  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  console.error("Firestore Error:", JSON.stringify(errInfo));
   throw new Error(JSON.stringify(errInfo));
 }
-
-async function testConnection() {
-  try {
-    await getDocFromServer(doc(db, "test", "connection"));
-    console.log("Firebase connected successfully");
-  } catch (error) {
-    if (error instanceof Error) {
-      const message = error.message.toLowerCase();
-      if (message.includes("the client is offline")) {
-        console.error("Please check your Firebase configuration.");
-      }
-      if (message.includes("permission-denied") || message.includes("missing or insufficient permissions")) {
-        console.warn("Firebase test connection was blocked by rules; continuing with local fallback.");
-      }
-    }
-  }
-}
-
-testConnection();

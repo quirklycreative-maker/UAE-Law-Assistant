@@ -8,6 +8,7 @@ import { cn } from "../lib/utils";
 import { useLanguage } from "../contexts/LanguageContext";
 import { format } from "date-fns";
 import { useUser } from "../contexts/UserContext";
+import { createMarkdownComponents } from "../lib/safety";
 
 export default function History() {
   const { user } = useUser();
@@ -20,6 +21,7 @@ export default function History() {
   const [cases, setCases] = useState<Record<string, string>>({}); // id -> title mapping
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [signInError, setSignInError] = useState<string | null>(null);
+  const markdownComponents = createMarkdownComponents();
 
   useEffect(() => {
     if (!user) return;
@@ -290,6 +292,7 @@ export default function History() {
                         ) : (
                           <ReactMarkdown
                             components={{
+                              ...markdownComponents,
                               strong: ({node, ...props}) => <strong className="text-accent-indigo font-black" {...props} />,
                               blockquote: ({node, ...props}) => <blockquote className={cn("border-accent-gold bg-prestige-50 p-8 italic my-8 shadow-sm", isRtl ? "border-r-4 rounded-l-[2rem]" : "border-l-4 rounded-r-[2rem]")} {...props} />
                             }}

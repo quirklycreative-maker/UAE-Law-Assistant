@@ -31,6 +31,7 @@ import { collection, addDoc, query, where, orderBy, serverTimestamp, updateDoc, 
 import { useLanguage } from "../contexts/LanguageContext";
 import { extractTextFromPdf } from "../lib/pdfUtils";
 import { useUser } from "../contexts/UserContext";
+import { createMarkdownComponents, stripUnsafeLinks } from "../lib/safety";
 
 interface Client {
   id: string;
@@ -52,6 +53,7 @@ export default function LawyerAssistant() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const { user } = useUser();
   const isSending = useRef(false);
+  const markdownComponents = createMarkdownComponents();
 
   // Client/Case Management State
   const [clients, setClients] = useState<Client[]>([]);
@@ -287,7 +289,7 @@ export default function LawyerAssistant() {
       const localLaws = await searchLocalLegislation(text || (selectedCase?.title ?? ""));
       const context = formatLawsForContext(localLaws);
 
-      const advice = await getLawyerCoPilotAdvice(fullPrompt, history, context, language);
+      const advice = stripUnsafeLinks(await getLawyerCoPilotAdvice(fullPrompt, history, context, language));
       const assistantNow = Date.now();
       setMessages(prev => [...prev, { role: 'model', text: advice, timestamp: assistantNow }]);
       
@@ -638,7 +640,7 @@ export default function LawyerAssistant() {
                   m.text
                 ) : (
                   <div className="prose prose-sm prose-prestige max-w-none prose-headings:font-black prose-headings:tracking-tighter prose-p:leading-relaxed">
-                    <ReactMarkdown>{m.text}</ReactMarkdown>
+                    <ReactMarkdown components={markdownComponents}>{m.text}</ReactMarkdown>
                   </div>
                 )}
               </div>

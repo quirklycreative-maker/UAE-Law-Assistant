@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { db } from "../lib/firebase";
 import { collection, getDocs, setDoc, deleteDoc, doc, query, orderBy, onSnapshot, where } from "firebase/firestore";
-import { Users, UserPlus, Trash2, ShieldCheck, Mail, Calendar, Loader2, LifeBuoy, MessageSquare, Clock, ArrowRight, ExternalLink, Activity, BarChart3, TrendingUp, Zap, Search } from "lucide-react";
+import { Users, UserPlus, Trash2, ShieldCheck, Mail, Calendar, Loader2, LifeBuoy, MessageSquare, Clock, ArrowRight, ExternalLink, Activity, BarChart3, TrendingUp, Zap, Search, BellRing, CheckCircle2, FileText } from "lucide-react";
 import { motion, AnimatePresence } from "../lib/motion-shim";
 import { cn } from "../lib/utils";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, Cell, PieChart, Pie } from "recharts";
@@ -10,6 +10,12 @@ import { format, subDays, startOfDay } from "date-fns";
 import { useLanguage } from "../contexts/LanguageContext";
 import { useUser } from "../contexts/UserContext";
 import { getLocalUsageStats } from "../lib/usage";
+import {
+  acknowledgeSupportIncident,
+  fetchSupportIncidentsFromFirestore,
+  getLocalSupportIncidents,
+  SupportIncidentRecord,
+} from "../lib/supportMcp";
 
 interface AuthorizedLawyer {
   email: string;
@@ -48,11 +54,13 @@ export default function Management() {
   const [activeTab, setActiveTab] = useState<"lawyers" | "support" | "system">("lawyers");
   const [lawyers, setLawyers] = useState<AuthorizedLawyer[]>([]);
   const [supportSessions, setSupportSessions] = useState<SupportSession[]>([]);
+  const [supportIncidents, setSupportIncidents] = useState<SupportIncidentRecord[]>([]);
   const [usageStats, setUsageStats] = useState<UsageStat[]>([]);
   const [newEmail, setNewEmail] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [viewingSession, setViewingSession] = useState<SupportSession | null>(null);
+  const [viewingIncident, setViewingIncident] = useState<SupportIncidentRecord | null>(null);
 
   const openRouterStats = usageStats.filter((stat) => stat.type === "openrouter_query");
   const totalOpenRouterTokens = openRouterStats.reduce((sum, stat) => sum + (stat.totalTokens ?? stat.tokens ?? 0), 0);
@@ -69,12 +77,24 @@ export default function Management() {
     return acc;
   }, {});
 
+  const formatIncidentStatus = (status: SupportIncidentRecord["status"]) => {
+    if (status === "needs_screenshot") return "open";
+    return status.replace("_", " ");
+  };
+
+  const getIncidentStatusTone = (status: SupportIncidentRecord["status"]) => {
+    if (status === "resolved") return "bg-prestige-100 text-prestige-500 border-prestige-200";
+    if (status === "triaged") return "bg-accent-indigo/10 text-accent-indigo border-accent-indigo/15";
+    return "bg-emerald-50 text-emerald-600 border-emerald-100";
+  };
+
   useEffect(() => {
     if (isSuperAdmin) {
       if (activeTab === "lawyers") {
         fetchLawyers();
       } else if (activeTab === "support") {
         fetchSupportSessions();
+        fetchSupportIncidents();
       } else if (activeTab === "system") {
         fetchUsageStats();
       }
@@ -141,6 +161,33 @@ export default function Management() {
       setSupportSessions(list);
       setIsLoading(false);
     });
+  };
+
+  const fetchSupportIncidents = async () => {
+    try {
+      const incidents = await fetchSupportIncidentsFromFirestore();
+      const localIncidents = getLocalSupportIncidents();
+      const merged = [...incidents, ...localIncidents].reduce<SupportIncidentRecord[]>((acc, incident) => {
+        if (!acc.some((item) => item.id === incident.id)) {
+          acc.push(incident);
+        }
+        return acc;
+      }, []);
+      setSupportIncidents(merged);
+    } catch (err) {
+      console.error("Error fetching support incidents:", err);
+      setSupportIncidents(getLocalSupportIncidents());
+      setIsLoading(false);
+    }
+  };
+
+  const handleAcknowledgeIncident = async (incidentId: string) => {
+    try {
+      await acknowledgeSupportIncident(incidentId);
+      await fetchSupportIncidents();
+    } catch (err) {
+      console.error("Error acknowledging support incident:", err);
+    }
   };
 
   const handleAddLawyer = async (e: React.FormEvent) => {
@@ -300,7 +347,134 @@ export default function Management() {
               )}
             </div>
           ) : activeTab === "support" ? (
+            <div className="space-y-6">
+              <div className="bg-white p-6 rounded-[2rem] border border-prestige-100 shadow-sm">
+                <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
+                  <div className="space-y-3 flex-1">
+                    <div className="flex items-center gap-2">
+                      <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center">
+                        <BellRing className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-black text-prestige-950 tracking-tight">Support MCP Bug Queue</h3>
+                        <p className="text-[10px] font-bold text-prestige-400 uppercase tracking-widest">Admin notifications with test scenarios</p>
+                      </div>
+                    </div>
+                    <p className="text-sm font-medium text-prestige-500 leading-relaxed max-w-3xl">
+                      Only bug reports land here. Each incident includes the route, a short summary, test scenarios, and a clear note that nothing gets published until manual confirmation happens in chat.
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 lg:min-w-[360px]">
+                    <div className="p-4 rounded-2xl bg-prestige-50 border border-prestige-100">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-prestige-400 mb-2">Open Incidents</p>
+                      <p className="text-2xl font-black text-prestige-950">{supportIncidents.filter((incident) => incident.status !== "resolved").length}</p>
+                    </div>
+                    <div className="p-4 rounded-2xl bg-prestige-50 border border-prestige-100">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-prestige-400 mb-2">With Screenshot</p>
+                      <p className="text-2xl font-black text-prestige-950">{supportIncidents.filter((incident) => Boolean(incident.screenshot)).length}</p>
+                    </div>
+                    <div className="p-4 rounded-2xl bg-prestige-50 border border-prestige-100">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-prestige-400 mb-2">Awaiting Chat Gate</p>
+                      <p className="text-2xl font-black text-prestige-950">{supportIncidents.filter((incident) => incident.manualConfirmationRequired).length}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
             <div className="space-y-4">
+              {supportIncidents.length > 0 && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-black text-prestige-950 uppercase tracking-widest">Bug notifications</h4>
+                    <span className="text-[10px] font-bold text-prestige-400 uppercase tracking-widest">Manual confirmation required in chat</span>
+                  </div>
+                  <div className="grid grid-cols-1 gap-4">
+                    {supportIncidents.map((incident) => (
+                      <motion.div
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        key={incident.id}
+                        className="bg-white p-6 rounded-3xl border border-prestige-100 shadow-sm flex flex-col gap-5"
+                      >
+                        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                          <div className="space-y-3 flex-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <div className={cn(
+                                "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border",
+                                incident.severity === "high" ? "bg-rose-50 text-rose-600 border-rose-100" : incident.severity === "medium" ? "bg-amber-50 text-amber-600 border-amber-100" : "bg-emerald-50 text-emerald-600 border-emerald-100"
+                              )}>
+                                {incident.severity} severity
+                              </div>
+                              <div className={cn(
+                                "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border",
+                                getIncidentStatusTone(incident.status)
+                              )}>
+                                {formatIncidentStatus(incident.status)}
+                              </div>
+                              <div className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border bg-white text-prestige-400 border-prestige-100">
+                                {incident.category}
+                              </div>
+                            </div>
+                            <div className="space-y-1">
+                              <h4 className="text-lg font-black text-prestige-950 tracking-tight">{incident.title}</h4>
+                              <p className="text-xs font-bold text-prestige-400 uppercase tracking-widest">
+                                {incident.userEmail || incident.userId} • {incident.route} • {incident.pageTitle}
+                              </p>
+                            </div>
+                            <p className="text-sm text-prestige-600 leading-relaxed">{incident.summary}</p>
+                            <div className="rounded-2xl bg-prestige-50 border border-prestige-100 p-4 space-y-3">
+                              <p className="text-[10px] font-black uppercase tracking-widest text-prestige-400">Test scenarios</p>
+                              <div className="flex flex-col gap-2">
+                                {incident.testScenarios.map((scenario, index) => (
+                                  <div key={index} className="flex items-start gap-2 text-sm text-prestige-700 font-medium">
+                                    <CheckCircle2 className="w-4 h-4 text-emerald-500 mt-0.5 shrink-0" />
+                                    <span>{scenario}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                            <div className="text-[10px] font-bold uppercase tracking-widest text-prestige-400">
+                              Publication gate: manual confirmation required in chat before any fix is published.
+                            </div>
+                            {incident.screenshot ? (
+                              <div className="text-[10px] font-bold uppercase tracking-widest text-emerald-600">
+                                Screenshot attached upfront for faster triage.
+                              </div>
+                            ) : (
+                              <div className="text-[10px] font-bold uppercase tracking-widest text-amber-600">
+                                No screenshot attached yet. Ask for one if the issue is visual or hard to reproduce.
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex md:flex-col gap-2">
+                            <button
+                              onClick={() => setViewingIncident(incident)}
+                              className="px-4 py-3 bg-prestige-950 text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-prestige-950/20"
+                            >
+                              View details
+                              <ArrowRight className="w-3 h-3" />
+                            </button>
+                            {incident.status !== "resolved" && (
+                              <button
+                                onClick={() => handleAcknowledgeIncident(incident.id)}
+                                className="px-4 py-3 bg-prestige-50 text-prestige-700 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 border border-prestige-100 hover:border-accent-indigo/20 hover:text-accent-indigo transition-all"
+                              >
+                                Mark triaged
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                        {incident.screenshot?.previewDataUrl && (
+                          <div className="rounded-2xl overflow-hidden border border-prestige-100 bg-prestige-50">
+                            <img src={incident.screenshot.previewDataUrl} alt={incident.screenshot.fileName} className="w-full max-h-64 object-contain" />
+                          </div>
+                        )}
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {isLoading ? (
                 Array(3).fill(0).map((_, i) => (
                   <div key={i} className="h-40 bg-prestige-200/50 rounded-3xl animate-pulse" />
@@ -414,6 +588,76 @@ export default function Management() {
                   </motion.div>
                 </div>
               )}
+              {viewingIncident && (
+                <div className="fixed inset-0 z-[210] flex items-center justify-center p-4 md:p-12">
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    onClick={() => setViewingIncident(null)}
+                    className="absolute inset-0 bg-prestige-950/60 backdrop-blur-sm"
+                  />
+                  <motion.div
+                    initial={{ scale: 0.95, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    className="relative w-full max-w-4xl max-h-[80vh] bg-white rounded-3xl shadow-2xl flex flex-col overflow-hidden"
+                  >
+                    <div className="p-6 border-b border-prestige-100 flex items-center justify-between gap-4">
+                      <div className="space-y-1">
+                        <h2 className="text-xl font-black text-prestige-950 tracking-tight">Incident details</h2>
+                        <p className="text-[10px] font-bold text-prestige-400 uppercase tracking-widest">{viewingIncident.userEmail || viewingIncident.userId} • {viewingIncident.route}</p>
+                      </div>
+                      <button
+                        onClick={() => setViewingIncident(null)}
+                        className="p-2 hover:bg-prestige-50 rounded-xl transition-colors text-prestige-400"
+                      >
+                        {t("close") || "Close"}
+                      </button>
+                    </div>
+                    <div className="flex-1 overflow-y-auto p-8 space-y-6 bg-prestige-50">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="p-4 bg-white rounded-2xl border border-prestige-100">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-prestige-400 mb-1">Severity</p>
+                          <p className="text-sm font-black text-prestige-950 capitalize">{viewingIncident.severity}</p>
+                        </div>
+                        <div className="p-4 bg-white rounded-2xl border border-prestige-100">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-prestige-400 mb-1">Status</p>
+                          <p className="text-sm font-black text-prestige-950 capitalize">{formatIncidentStatus(viewingIncident.status)}</p>
+                        </div>
+                        <div className="p-4 bg-white rounded-2xl border border-prestige-100">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-prestige-400 mb-1">Gate</p>
+                          <p className="text-sm font-black text-prestige-950">Manual chat confirmation</p>
+                        </div>
+                      </div>
+                      <div className="space-y-3">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-prestige-400">Reported issue</p>
+                        <div className="p-4 bg-white border border-prestige-100 rounded-2xl text-sm text-prestige-700 leading-relaxed">
+                          {viewingIncident.summary}
+                        </div>
+                      </div>
+                      {viewingIncident.screenshot?.previewDataUrl && (
+                        <div className="space-y-3">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-prestige-400">Screenshot</p>
+                          <div className="rounded-2xl overflow-hidden border border-prestige-100 bg-white">
+                            <img src={viewingIncident.screenshot.previewDataUrl} alt={viewingIncident.screenshot.fileName} className="w-full max-h-[420px] object-contain" />
+                          </div>
+                        </div>
+                      )}
+                      <div className="space-y-3">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-prestige-400">Test scenarios</p>
+                        <div className="space-y-2">
+                          {viewingIncident.testScenarios.map((scenario, index) => (
+                            <div key={index} className="flex items-start gap-2 text-sm text-prestige-700 font-medium bg-white border border-prestige-100 rounded-2xl p-4">
+                              <CheckCircle2 className="w-4 h-4 text-emerald-500 mt-0.5 shrink-0" />
+                              <span>{scenario}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                </div>
+              )}
+            </div>
             </div>
           ) : (
             <div className="space-y-12">

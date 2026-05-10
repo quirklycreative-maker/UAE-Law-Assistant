@@ -1,5 +1,6 @@
 import { MODELS, generateGeminiContent } from "../lib/gemini";
 import { logUsage } from "../lib/usage";
+import { copilotSafetyPreamble, stripUnsafeLinks } from "../lib/safety";
 
 const SYSTEM_INSTRUCTION = `You are a UAE legal research copilot for professional lawyers, in-house counsel, and legal operators.
 
@@ -66,6 +67,7 @@ export async function getLawyerCoPilotAdvice(
   language: string = "en"
 ) {
   const augmentedInstruction = `${LAWYER_COPILOT_INSTRUCTION}
+    ${copilotSafetyPreamble()}
     
     IMPORTANT: The current user preference is ${language.toUpperCase()}.
     
@@ -86,13 +88,13 @@ export async function getLawyerCoPilotAdvice(
       usageLabel: 'openrouter_query'
     });
 
-    return text || "I'm sorry, I couldn't generate a technical response.";
+    return stripUnsafeLinks(text || "I'm sorry, I couldn't generate a technical response.");
   } catch (error) {
     console.error("OpenRouter Technical Error:", error);
     if (isOpenRouterAuthError(error)) {
-      return "OpenRouter rejected the API key (401). Please replace VITE_OPENROUTER_API_KEY with a valid key from your OpenRouter dashboard.";
+    return stripUnsafeLinks("OpenRouter rejected the API key (401). Please replace VITE_OPENROUTER_API_KEY with a valid key from your OpenRouter dashboard.");
     }
-    return "Error: Technical co-pilot bridge failed.";
+    return stripUnsafeLinks("Error: Technical co-pilot bridge failed.");
   }
 }
 
@@ -104,6 +106,7 @@ export async function getLegalAdvice(
   imageData?: string // base64 string
 ) {
   const augmentedInstruction = `${SYSTEM_INSTRUCTION}
+    ${copilotSafetyPreamble()}
     
     IMPORTANT: The current user preference is ${language.toUpperCase()}. 
     If the user has been speaking in ${language === 'en' ? 'Arabic' : 'English'}, respect their session flow, but prioritize ${language === 'en' ? 'English' : 'Arabic'} for this response if their message is in that language.
@@ -135,21 +138,21 @@ export async function getLegalAdvice(
       usageLabel: 'openrouter_query'
     });
 
-    return text || "I'm sorry, I couldn't generate a response at this time.";
+    return stripUnsafeLinks(text || "I'm sorry, I couldn't generate a response at this time.");
   } catch (error: any) {
     console.error("OpenRouter API Error:", error);
 
     const errorStr = JSON.stringify(error).toUpperCase();
     if (isOpenRouterAuthError(error) || error?.status === 401 || errorStr.includes("401") || errorStr.includes("UNAUTHORIZED") || errorStr.includes("USER NOT FOUND")) {
-      return "OpenRouter rejected the API key (401). Please replace VITE_OPENROUTER_API_KEY with a valid key from your OpenRouter dashboard.";
+      return stripUnsafeLinks("OpenRouter rejected the API key (401). Please replace VITE_OPENROUTER_API_KEY with a valid key from your OpenRouter dashboard.");
     }
     if (error?.status === 503 || errorStr.includes("503") || errorStr.includes("UNAVAILABLE")) {
-      return "The AI service is currently experiencing high demand or is temporarily unavailable (503). Please try again in a few moments.";
+      return stripUnsafeLinks("The AI service is currently experiencing high demand or is temporarily unavailable (503). Please try again in a few moments.");
     }
     
     if (errorStr.includes("403")) {
-        return "I'm sorry, there seems to be a permission issue with the AI service. Please check if your OpenRouter API key is correctly configured and has access to the requested model.";
+        return stripUnsafeLinks("I'm sorry, there seems to be a permission issue with the AI service. Please check if your OpenRouter API key is correctly configured and has access to the requested model.");
     }
-    return "Error: Unable to connect to the legal advisor. Please try again.";
+    return stripUnsafeLinks("Error: Unable to connect to the legal advisor. Please try again.");
   }
 }

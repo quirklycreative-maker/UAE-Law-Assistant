@@ -24,6 +24,10 @@ function parseAdminEmails() {
     .filter(Boolean);
 }
 
+export function getConfiguredAdminEmails() {
+  return parseAdminEmails();
+}
+
 export function isAllowedAdminEmail(email?: string | null) {
   if (!email) return false;
   return parseAdminEmails().includes(email.trim().toLowerCase());
