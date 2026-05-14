@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: huqiqiyy-poc
+    name: huqiqiyy
     env: node
     buildCommand: npm ci && npm run build
     startCommand: npm start

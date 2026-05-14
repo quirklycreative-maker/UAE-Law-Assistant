@@ -34,7 +34,7 @@
       if (location.protocol === "file:") {
         location.replace(defaultDevOrigin);
       } else if (!location.hash) {
-        const isProductionHost = location.hostname.endsWith("onrender.com") || location.hostname.endsWith("quirkly.life");
+        const isProductionHost = location.hostname.endsWith("onrender.com") || location.hostname.endsWith("quirkly.creative");
 
         if (normalizedAppBasePath === "/") {
           if (location.pathname !== "/") {

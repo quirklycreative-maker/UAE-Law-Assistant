@@ -17,7 +17,7 @@ View your app in AI Studio: https://ai.studio/apps/10b0c7d7-f9fb-4db2-9519-332f0
    `npm install`
 2. Set `VITE_OPENROUTER_API_KEY` in [.env.local](.env.local) to your OpenRouter API key
 3. Set `VITE_CLERK_PUBLISHABLE_KEY` in [.env.local](.env.local) to your Clerk publishable key
-4. Optional: set `APP_URL=https://huqiqiyy-poc.quirkly.life` when you deploy the app on the POC subdomain; leave `VITE_APP_BASE_PATH` blank for a root-path deployment on that subdomain
+4. Optional: set `APP_URL=https://huqiqiyy.quirkly.creative` when you deploy the app on the production subdomain; leave `VITE_APP_BASE_PATH` blank for a root-path deployment on that subdomain
 5. Optional: override `VITE_OPENROUTER_FREE_MODEL`, `VITE_OPENROUTER_FLASH_MODEL`, `VITE_OPENROUTER_PRO_MODEL`, or `VITE_OPENROUTER_VISION_MODEL` if you want to pin a different model
 6. Run the app:
    `npm run dev`
