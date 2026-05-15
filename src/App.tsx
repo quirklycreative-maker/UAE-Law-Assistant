@@ -233,8 +233,7 @@ function Home() {
                 </div>
               </div>
             </motion.div>
-          ) : null
-          )}
+          ) : null}
         </div>
       </section>
 
