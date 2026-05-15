@@ -1534,7 +1534,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/assistant" element={
-              <ProtectedRoute><Assistant /></ProtectedRoute>
+              <ProtectedRoute requireUser><Assistant /></ProtectedRoute>
              } />
             <Route path="/laws" element={<Legislation />} />
             <Route path="/lawyers" element={<LawyersPage />} />
