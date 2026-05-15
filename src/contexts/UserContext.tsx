@@ -9,6 +9,7 @@ import { useAuthBridge } from "./AuthBridge";
 interface UserContextType {
   user: any;
   loading: boolean;
+  isAuthenticated: boolean;
   lawyerProfile: Lawyer | null;
   isSuperAdmin: boolean;
   isAuthorized: boolean;
@@ -27,6 +28,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const user = clerkUser || demoUser;
   const loading = !isLoaded && !demoUser;
+  const isAuthenticated = Boolean(clerkUser);
   const isSuperAdmin = isAllowedAdminEmail(user?.email);
 
   useEffect(() => {
@@ -112,6 +114,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     <UserContext.Provider value={{ 
       user, 
       loading, 
+      isAuthenticated,
       lawyerProfile, 
       isSuperAdmin, 
       isAuthorized, 

@@ -1480,9 +1480,8 @@ function Appointments() {
 // --- Protected Routes Helper ---
 
 function ProtectedRoute({ requireUser = false, requireLawyer = false, requireAdmin = false, children }: { requireUser?: boolean, requireLawyer?: boolean, requireAdmin?: boolean, children: React.ReactNode }) {
-  const { user, lawyerProfile, isSuperAdmin, loading } = useUser();
+  const { user, isAuthenticated, lawyerProfile, isSuperAdmin, loading } = useUser();
   const { t } = useLanguage();
-  const hasRealLogin = Boolean(user && !user.isAnonymous);
 
   if (loading) {
     return (
@@ -1496,7 +1495,7 @@ function ProtectedRoute({ requireUser = false, requireLawyer = false, requireAdm
     return <Navigate to="/" replace />;
   }
 
-  if (requireUser && !hasRealLogin) {
+  if (requireUser && !isAuthenticated) {
     return <Navigate to="/" replace />;
   }
 
