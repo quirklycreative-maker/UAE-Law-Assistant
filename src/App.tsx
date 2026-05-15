@@ -131,14 +131,14 @@ function Home() {
                   </motion.div>
                 </div>
               ) : (
-                <>
+                user ? (
                   <button 
                     onClick={() => navigate("/assistant")}
                     className="px-8 md:px-10 py-4 md:py-5 bg-white text-prestige-950 rounded-2xl font-black hover:bg-accent-gold transition-all flex items-center justify-center gap-3 text-sm shadow-2xl shadow-white/5 active:scale-95"
                   >
                     Open Copilot <ArrowRight className={cn("w-5 h-5", isRtl && "rotate-180")} />
                   </button>
-                </>
+                ) : null
               )}
             </div>
           </motion.div>
@@ -186,7 +186,7 @@ function Home() {
                 </div>
               </div>
             </motion.div>
-          ) : (
+          ) : user ? (
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -230,9 +230,10 @@ function Home() {
                           />
                         </div>
                     </div>
-                  </div>
+                </div>
               </div>
             </motion.div>
+          ) : null
           )}
         </div>
       </section>
